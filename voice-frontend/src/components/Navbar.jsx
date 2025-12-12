@@ -1,73 +1,57 @@
-// src/components/Navbar.jsx
 import { Link } from 'react-router-dom';
-import { Mic, LogOut, User, Menu, X } from 'lucide-react';
-import { useState } from 'react';
+import { Mic, Sparkles, ChevronRight } from 'lucide-react';
 
 const Navbar = () => {
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-    // TEMPORARY: We will replace this with real AuthContext later
     const isAuth = false;
 
     return (
-        <nav className="bg-slate-900 border-b border-slate-800 text-white sticky top-0 z-50">
-            <div className="container mx-auto px-4">
-                <div className="flex justify-between items-center h-16">
-                    {/* Logo */}
-                    <Link to="/" className="flex items-center gap-2 text-xl font-bold text-blue-400 hover:text-blue-300 transition">
-                        <Mic className="w-6 h-6" />
-                        <span>VoiceAI</span>
-                    </Link>
+        <div className="fixed top-6 left-0 right-0 z-50 flex justify-center px-6">
+            <nav className="flex items-center gap-2 p-2 rounded-full border border-white/10 bg-black/50 backdrop-blur-2xl shadow-2xl shadow-indigo-500/10 ring-1 ring-white/5">
 
-                    {/* Desktop Menu */}
-                    <div className="hidden md:flex items-center gap-6">
-                        {isAuth ? (
-                            <>
-                                <Link to="/dashboard" className="text-slate-300 hover:text-white transition font-medium">Dashboard</Link>
-                                <button className="flex items-center gap-2 text-red-400 hover:text-red-300 transition">
-                                    <LogOut className="w-4 h-4" /> Logout
-                                </button>
-                            </>
-                        ) : (
-                            <>
-                                <Link to="/login" className="text-slate-300 hover:text-white transition font-medium">Login</Link>
-                                <Link to="/register" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition font-medium shadow-lg shadow-blue-500/20">
-                                    Get Started
-                                </Link>
-                            </>
-                        )}
+                {/* 🌀 Logo Area */}
+                <Link to="/" className="flex items-center gap-3 pl-4 pr-6 border-r border-white/10">
+                    <div className="relative flex items-center justify-center">
+                        <div className="absolute w-full h-full bg-indigo-500/50 blur-md rounded-full" />
+                        <Mic className="relative w-5 h-5 text-indigo-400" />
                     </div>
+                    <span className="font-semibold text-white tracking-wide">
+                        Voice<span className="text-indigo-400">AI</span>
+                    </span>
+                </Link>
 
-                    {/* Mobile Menu Button */}
-                    <button
-                        className="md:hidden text-slate-300 hover:text-white"
-                        onClick={() => setIsMenuOpen(!isMenuOpen)}
-                    >
-                        {isMenuOpen ? <X /> : <Menu />}
-                    </button>
+                {/* 🔗 Desktop Links */}
+                <div className="hidden md:flex items-center px-4 gap-1">
+                    <NavLink to="/">Mission</NavLink>
+                    <NavLink to="/">Technology</NavLink>
+                    <NavLink to="/">Studio</NavLink>
                 </div>
-            </div>
 
-            {/* Mobile Dropdown */}
-            {isMenuOpen && (
-                <div className="md:hidden bg-slate-800 border-t border-slate-700 py-4">
-                    <div className="container mx-auto px-4 flex flex-col gap-4">
-                        {isAuth ? (
-                            <>
-                                <Link to="/dashboard" className="text-slate-300 hover:text-white">Dashboard</Link>
-                                <button className="text-red-400 hover:text-red-300 text-left">Logout</button>
-                            </>
-                        ) : (
-                            <>
-                                <Link to="/login" className="text-slate-300 hover:text-white">Login</Link>
-                                <Link to="/register" className="text-blue-400 hover:text-blue-300 font-bold">Get Started</Link>
-                            </>
-                        )}
-                    </div>
+                {/* ⚡ Action Area */}
+                <div className="pl-4 pr-2 flex items-center gap-3">
+                    {isAuth ? (
+                        <Link to="/dashboard" className="text-sm font-medium text-white hover:text-indigo-400">Dashboard</Link>
+                    ) : (
+                        <>
+                            <Link to="/login" className="hidden md:block text-xs font-medium text-slate-400 hover:text-white transition">
+                                Log in
+                            </Link>
+                            <Link to="/register" className="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-full text-xs font-bold hover:bg-indigo-50 transition-colors">
+                                <Sparkles className="w-3 h-3 text-indigo-600" />
+                                Start Creating
+                            </Link>
+                        </>
+                    )}
                 </div>
-            )}
-        </nav>
+            </nav>
+        </div>
     );
 };
+
+// Micro-component for links with hover effect
+const NavLink = ({ to, children }) => (
+    <Link to={to} className="px-4 py-2 text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 rounded-full transition-all">
+        {children}
+    </Link>
+);
 
 export default Navbar;
