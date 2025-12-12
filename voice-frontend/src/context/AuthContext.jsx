@@ -27,25 +27,32 @@ export const AuthProvider = ({ children }) => {
         checkAuth();
     }, []);
 
-    // 🔑 2. Login Function
-    const login = async (username, password) => {
+// 🔑 2. Login Function (Final Production Version)
+    const login = async (email, password) => {
         try {
-            // Hitting the Django Token Endpoint
-            const response = await api.post('/token/', { username, password });
+            const response = await api.post('/auth/login/', { email, password });
+            const accessToken = response.data.token; // key token
+            const userData = response.data.user;     // user actual data
 
-            // Assuming response format: { access: "...", refresh: "..." }
-            const accessToken = response.data.access;
+            if (!accessToken) {
+                throw new Error("Login succeeded but no token received!");
+            }
 
+            //storing token in browser
             localStorage.setItem('token', accessToken);
             setToken(accessToken);
-            setUser({ username }); // Set basic user info
+
+            //storing user data to be displayed in the dashboard
+            setUser(userData);
 
             toast.success('System Access Granted.');
-            navigate('/dashboard'); // Redirect to dashboard after login
+            navigate('/dashboard');
 
         } catch (error) {
             console.error("Login Error:", error);
-            const msg = error.response?.data?.detail || "Invalid credentials.";
+            const msg = error.response?.data?.non_field_errors?.[0] ||
+                        error.response?.data?.detail ||
+                        "Login failed.";
             toast.error(msg);
         }
     };

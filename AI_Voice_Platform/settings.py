@@ -52,11 +52,17 @@ INSTALLED_APPS = [
     'core.apps.CoreConfig',
     'projects.apps.ProjectsConfig',
     'voice_sessions.apps.VoiceSessionsConfig',
+    # for allowing talking from Backend to Frontend
+    "corsheaders",
 ]
 
 AUTH_USER_MODEL = "accounts.User"
 
 MIDDLEWARE = [
+    # for the corsheaders communication from backend to frontend
+    "corsheaders.middleware.CorsMiddleware",  #
+    "django.middleware.common.CommonMiddleware",
+
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -169,3 +175,9 @@ REST_FRAMEWORK = {
 #     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
 #     "PAGE_SIZE": 10,
 # }
+
+# allowing the frontend linking 
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
