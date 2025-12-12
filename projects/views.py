@@ -10,7 +10,7 @@ class ProjectListCreateView(generics.ListCreateAPIView):
     serializer_class= ProjectSerializer
     permissions_classes = [permissions.IsAuthenticated]
     
-    def get_queryset(selfself):
+    def get_queryset(self):
         return  Project.objects.filter(owner= self.request.user)
     
     def perform_create(self, serializer):
