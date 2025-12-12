@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { Toaster } from 'react-hot-toast';
 import MainLayout from './layouts/MainLayout';
-
+import Login from './pages/Login';
 // Pages Import
 import LandingPage from './pages/LandingPage';
 
@@ -15,7 +15,7 @@ const AppRoutes = () => {
           <Route path="/" element={<LandingPage />} />
 
           {/* 🔐 Auth & Protected Routes */}
-          <Route path="/login" element={<div className="text-center pt-40 text-slate-400 font-mono">System Login Interface Loading...</div>} />
+          <Route path="/login" element={<Login />} />
           <Route path="/register" element={<div className="text-center pt-40 text-slate-400 font-mono">New User Registration Loading...</div>} />
           <Route path="/dashboard" element={<div className="text-center pt-40 text-slate-400 font-mono">Restricted Area: Dashboard</div>} />
         </Routes>
