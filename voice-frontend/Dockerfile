@@ -1,5 +1,5 @@
 # 1. Use Node.js Alpine image (lightweight)
-FROM node:18-alpine
+FROM node:22-alpine
 
 # 2. Set working directory
 WORKDIR /app
