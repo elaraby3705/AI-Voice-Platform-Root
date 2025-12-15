@@ -1,33 +1,85 @@
-version: '3.9'
+version: '3.8'
 
 services:
-  db:
-    image: postgres:15
-    container_name: ai_voice_db
-    restart: always
-    env_file:
-      - .env
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-  web:
-    build: .
-    container_name: ai_voice_web
+  # ----------------------------
+  # Service 1: Core API (Backend)
+  # ----------------------------
+  backend:
+    build:
+      context: ./services/core-api
+      dockerfile: Dockerfile
+    container_name: ai_voice_backend       # ✅ Container Name
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
-      - .:/app
+      - ./services/core-api:/app
     ports:
       - "8000:8000"
+
+    # Load your existing .env file
     env_file:
-      - .env
+      - ./services/core-api/.env
+
+    environment:
+      # Overriding DB_HOST to point to the new DB Container Name
+      - DB_HOST=ai_voice_db_psql
+      # Fallback defaults updated to ai_voice naming (used if .env is missing)
+      - DB_NAME=${DB_NAME:-ai_voice_db}
+      - DB_USER=${DB_USER:-ai_voice_user}
+      - DB_PASSWORD=${DB_PASSWORD:-ai_voice_password}
+
     depends_on:
       - db
+    networks:
+      - ai-voice-network                   # ✅ Network Name
+
+  # ----------------------------
+  # Service 2: Frontend
+  # ----------------------------
+  frontend:
+    build:
+      context: ./voice-frontend
+      dockerfile: Dockerfile
+    container_name: ai_voice_frontend      # ✅ Container Name
+    volumes:
+      - ./voice-frontend/src:/app/src
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000/api/v1
+    depends_on:
+      - backend
+    networks:
+      - ai-voice-network                   # ✅ Network Name
+
+  # ----------------------------
+  # Service 3: Database
+  # ----------------------------
+  db:
+    image: postgres:15-alpine
+    container_name: ai_voice_db_psql       # ✅ Container Name
+    volumes:
+      - ai-voice-db-data:/var/lib/postgresql/data  # ✅ Volume Name
+
+    env_file:
+      - ./services/core-api/.env
+
+    # Mapping .env variables to Postgres Requirements
+    environment:
+      - POSTGRES_DB=${DB_NAME:-ai_voice_db}             # ✅ Default DB Name
+      - POSTGRES_USER=${DB_USER:-ai_voice_user}         # ✅ Default User
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-ai_voice_password}
+
+    ports:
+      - "5432:5432"
+    networks:
+      - ai-voice-network                   # ✅ Network Name
+
+# ----------------------------
+# Networks & Volumes Definition
+# ----------------------------
+networks:
+  ai-voice-network:                        # ✅ Network Definition
+    driver: bridge
 
 volumes:
-  postgres_data:
+  ai-voice-db-data:                        # ✅ Volume Definition
