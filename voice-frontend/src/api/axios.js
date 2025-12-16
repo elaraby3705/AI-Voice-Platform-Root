@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // 1. Define the Base URL for your Django Backend
-const BASE_URL = 'http://192.168.100.30:8000/api/v1/'; // this is my Vbox VM Ip**
+const BASE_URL = 'http://192.168.100.30:8000/api/v1/';// this is my Vbox VM Ip**
 
 const api = axios.create({
     baseURL: BASE_URL,
