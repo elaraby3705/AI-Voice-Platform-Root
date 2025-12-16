@@ -61,8 +61,7 @@ AUTH_USER_MODEL = "accounts.User"
 
 MIDDLEWARE = [
     # for the corsheaders communication from backend to frontend
-    "corsheaders.middleware.CorsMiddleware",  #
-    "django.middleware.common.CommonMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
 
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -180,5 +179,5 @@ REST_FRAMEWORK = {
 # allowing the frontend linking 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
-    "http://127.0.0.1:5173",
+    "http://192.168.100.30:5173",## this is here because   I use VM on Vbox and that is the Ip of the machine
 ]
