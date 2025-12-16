@@ -179,5 +179,6 @@ REST_FRAMEWORK = {
 # allowing the frontend linking 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
+    "http://127.0.0.1:5173",
     "http://192.168.100.30:5173",## this is here because   I use VM on Vbox and that is the Ip of the machine
 ]
