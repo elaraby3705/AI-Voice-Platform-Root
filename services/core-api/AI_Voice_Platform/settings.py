@@ -16,6 +16,10 @@ from pathlib import Path
 from dotenv import load_dotenv
 import os
 from pathlib import Path
+# LIVEKIT_APIs
+LIVEKIT_API_URL = os.environ.get("LIVEKIT_API_URL")
+LIVEKIT_API_KEY = os.environ.get("LIVEKIT_API_KEY")
+LIVEKIT_API_SECRET = os.environ.get("LIVEKIT_API_SECRET")
 
 load_dotenv()  # read .env file
 
