@@ -6,5 +6,4 @@ urlpatterns = [
     path('api/v1/auth/', include('accounts.urls')),
     path("api/v1/projects/", include("projects.urls")),
     path("api/v1/sessions/", include("voice_sessions.urls")),
-
 ]
