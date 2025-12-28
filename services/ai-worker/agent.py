@@ -4,14 +4,16 @@ from dotenv import load_dotenv
 
 from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, cli, llm
 from livekit.agents.pipeline import VoicePipelineAgent
-from livekit.plugins import openai, silero
+# 1. UPDATED IMPORTS: Added deepgram
+from livekit.plugins import openai, silero, deepgram
 
-# 1. Load environment variables (API Keys)
+# 2. Load environment variables (API Keys)
 load_dotenv()
 
-# 2. Configure Logging (So we can see what's happening in Docker logs)
+# 3. Configure Logging
 logger = logging.getLogger("ai-agent")
 logger.setLevel(logging.INFO)
+
 
 async def entrypoint(ctx: JobContext):
     """
@@ -20,20 +22,26 @@ async def entrypoint(ctx: JobContext):
     """
     logger.info(f"🔗 Connecting to room: {ctx.room.name}")
 
-    # 3. Connect to the LiveKit Room (Audio Only)
+    # 4. Connect to the LiveKit Room (Audio Only)
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
 
-    # 4. Wait for a user to join
+    # 5. Wait for a user to join
     participant = await ctx.wait_for_participant()
     logger.info(f"👤 User joined: {participant.identity}")
 
-    # 5. Define the AI Agent (The "Brain")
-    # We use OpenAI for everything (Listening, Thinking, Speaking) to keep it simple.
+    # 6. Define the AI Agent (The "Brain")
     agent = VoicePipelineAgent(
-        vad=silero.VAD.load(),                  # Voice Activity Detection (Knows when you stop talking)
-        stt=openai.STT(),                       # Speech-to-Text (Ears)
-        llm=openai.LLM(),                       # Language Model (Brain - GPT-4o)
-        tts=openai.TTS(),                       # Text-to-Speech (Mouth)
+        vad=silero.VAD.load(),  # Voice Activity Detection
+
+        # ✅ CHANGED: Using Deepgram for Hearing (STT)
+        # This fixes the "Quota Exceeded" error on the listening part.
+        stt=deepgram.STT(),
+
+        # ⚠️ NOTE: Still using OpenAI for Thinking and Speaking.
+        # If the crash persists during "Thinking...", we will need to swap LLM/TTS too.
+        llm=openai.LLM(),
+        tts=openai.TTS(),
+
         chat_ctx=llm.ChatContext().append(
             role="system",
             text=(
@@ -44,10 +52,10 @@ async def entrypoint(ctx: JobContext):
         ),
     )
 
-    # 6. Start the Agent
+    # 7. Start the Agent
     agent.start(ctx.room, participant)
 
-    # 7. Greeting
+    # 8. Greeting
     logger.info("🤖 Agent starting...")
     await agent.say("Hello! I am connected and ready. How can I help you today?", allow_interruptions=True)
 
