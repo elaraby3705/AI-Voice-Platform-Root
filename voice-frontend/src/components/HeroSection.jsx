@@ -57,7 +57,7 @@ const HeroSection = () => {
                 <button className="btn-secondary">Get API Keys</button>
 
                 <button
-                    onClick={connectToAgent}
+                    onClick={() => { alert("BUTTON CLICKED!"); connectToAgent(); }}
                     disabled={isConnecting}
                     className="btn-primary flex items-center gap-2"
                 >
