@@ -4,62 +4,63 @@ from dotenv import load_dotenv
 
 from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, cli, llm
 from livekit.agents.pipeline import VoicePipelineAgent
-# 1. UPDATED IMPORTS: Added deepgram
-from livekit.plugins import openai, silero, deepgram
+# Imports: Using Deepgram for Audio and Groq for Intelligence
+from livekit.plugins import silero, deepgram, groq
 
-# 2. Load environment variables (API Keys)
+# 1. Load environment variables
 load_dotenv()
 
-# 3. Configure Logging
+# 2. Configure Logging
 logger = logging.getLogger("ai-agent")
 logger.setLevel(logging.INFO)
 
 
 async def entrypoint(ctx: JobContext):
     """
-    This function runs every time a user joins the room.
-    It initializes the AI Agent for that specific user.
+    Main entrypoint for the AI Agent.
     """
     logger.info(f"🔗 Connecting to room: {ctx.room.name}")
 
-    # 4. Connect to the LiveKit Room (Audio Only)
+    # 3. Connect to LiveKit (Audio Only)
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
 
-    # 5. Wait for a user to join
+    # 4. Wait for a user to join the room
     participant = await ctx.wait_for_participant()
     logger.info(f"👤 User joined: {participant.identity}")
 
-    # 6. Define the AI Agent (The "Brain")
+    # 5. Configure the Agent with Free/Fast Plugins
     agent = VoicePipelineAgent(
         vad=silero.VAD.load(),  # Voice Activity Detection
 
-        # ✅ CHANGED: Using Deepgram for Hearing (STT)
-        # This fixes the "Quota Exceeded" error on the listening part.
+        # EARS: Deepgram STT (Fast & Free Tier)
         stt=deepgram.STT(),
 
-        # ⚠️ NOTE: Still using OpenAI for Thinking and Speaking.
-        # If the crash persists during "Thinking...", we will need to swap LLM/TTS too.
-        llm=openai.LLM(),
-        tts=openai.TTS(),
+        # BRAIN: Groq LLM (Llama 3 - 8B Model)
+        # Note: This is extremely fast and free.
+        llm=groq.LLM(model="llama3-8b-8192"),
 
+        # MOUTH: Deepgram Aura TTS
+        tts=deepgram.TTS(),
+
+        # CONTEXT: The Agent's Personality
         chat_ctx=llm.ChatContext().append(
             role="system",
             text=(
-                "You are a helpful voice assistant for the 'Project Nexus' platform. "
+                "You are a helpful voice assistant for 'Project Nexus'. "
                 "You are concise, friendly, and professional. "
                 "Keep your responses short (under 2 sentences) unless asked to elaborate."
             ),
         ),
     )
 
-    # 7. Start the Agent
+    # 6. Start the Agent
     agent.start(ctx.room, participant)
 
-    # 8. Greeting
+    # 7. Initial Greeting
     logger.info("🤖 Agent starting...")
-    await agent.say("Hello! I am connected and ready. How can I help you today?", allow_interruptions=True)
+    await agent.say("Hello! I am fully operational. How can I help you?", allow_interruptions=True)
 
 
 if __name__ == "__main__":
-    # This runs the worker listener
+    # Start the worker
     cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
