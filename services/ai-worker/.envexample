@@ -4,3 +4,4 @@ LIVEKIT_API_SECRET=your_api_secret
 OPENAI_API_KEY=sk-proj-your_key
 # Deepgram (The new Ears)
 DEEPGRAM_API_KEY=your_deepgram_key_here
+GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxxxxxx
