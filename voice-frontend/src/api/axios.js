@@ -10,7 +10,14 @@ const api = axios.create({
         'Content-Type': 'application/json',
     },
 });
-
+api.interceptors.request.use((config) => {
+    // Check if you saved it as 'token' or 'access_token' in Login.jsx
+    const token = localStorage.getItem('token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+});
 // 2. Request Interceptor
 // Automatically adds the 'Authorization: Bearer <token>' header if a token exists.
 api.interceptors.request.use(
