@@ -1,8 +1,7 @@
 import { useState, useCallback } from 'react';
-import api from '../api/axios'; // Imports your configured axios instance
+import api from '../api/axios';
 
 export const useVoiceAgent = () => {
-    // 1. Define State to track connection status
     const [state, setState] = useState({
         token: null,
         url: null,
@@ -10,6 +9,26 @@ export const useVoiceAgent = () => {
         isConnecting: false,
         error: null,
     });
+
+    const connectToAgent = useCallback(async () => {
+        setState(prev => ({ ...prev, isConnecting: true, error: null }));
+        try {
+            console.log("📡 Connecting...");
+            const response = await api.get('/livekit/token/');
+            const { token, url } = response.data;
+            setState({ token, url, isConnected: true, isConnecting: false, error: null });
+        } catch (err) {
+            console.error("❌ Error:", err);
+            setState(prev => ({ ...prev, isConnecting: false, error: "Connection Failed" }));
+        }
+    }, []);
+
+    const disconnect = useCallback(() => {
+        setState({ token: null, url: null, isConnected: false, isConnecting: false, error: null });
+    }, []);
+
+    return { ...state, connectToAgent, disconnect };
+};
 
     // 2. Function: Request a Ticket from Django
     const connectToAgent = useCallback(async () => {
