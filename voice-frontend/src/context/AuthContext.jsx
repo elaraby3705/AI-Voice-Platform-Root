@@ -1,36 +1,38 @@
-import { createContext, useState, useContext, useEffect } from 'react';
+import { createContext, useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-// 1. Create and Export the Context
 export const AuthContext = createContext();
 
-// 2. Create and Export the Hook (so you can use 'useAuth()' anywhere)
 export const useAuth = () => useContext(AuthContext);
 
-// 3. The Provider Component
 export const AuthProvider = ({ children }) => {
-    const [currentUser, setCurrentUser] = useState(null);
+    // State for User and Token
+    const [user, setUser] = useState(null);
+    const [token, setToken] = useState(localStorage.getItem('access_token') || null);
     const [loading, setLoading] = useState(true);
+
     const navigate = useNavigate();
 
-    // 🚀 DYNAMIC BACKEND URL (Crucial for VM/LAN access)
-    // This automatically grabs '192.168.100.30' or 'localhost' from your browser bar
-    // and adds port 8000. No more hardcoded IP errors.
+    // 🚀 DYNAMIC API URL (The Magic Fix)
+    // This automatically detects your VM IP (192.168.100.30) so you don't get Connection Refused
     const API_URL = `http://${window.location.hostname}:8000/api`;
 
-    // 4. Check Auth Status on Load (Persist Login)
+    // 🔄 1. Check Auth on App Start
     useEffect(() => {
         const checkAuth = () => {
-            const token = localStorage.getItem('access_token');
+            const storedToken = localStorage.getItem('access_token');
             const storedUser = localStorage.getItem('user_data');
 
-            if (token && storedUser) {
-                try {
-                    setCurrentUser(JSON.parse(storedUser));
-                } catch (e) {
-                    console.error("Failed to parse user data", e);
+            if (storedToken) {
+                setToken(storedToken);
+                if (storedUser) {
+                    try {
+                        setUser(JSON.parse(storedUser));
+                    } catch (e) {
+                        console.error("Error parsing user data", e);
+                    }
                 }
             }
             setLoading(false);
@@ -38,98 +40,98 @@ export const AuthProvider = ({ children }) => {
         checkAuth();
     }, []);
 
-    // 5. Login Action
+    // 🔑 2. Login Function
     const login = async (username, password) => {
         try {
-            console.log(`📡 Connecting to Backend at: ${API_URL}/token/`);
+            console.log(`📡 Connecting to: ${API_URL}/token/`);
 
-            // POST request to Django Backend
-            // We use the dynamic API_URL here
+            // We use standard axios here to ensure we hit the Dynamic IP
             const response = await axios.post(`${API_URL}/token/`, {
-                username,
+                username, // Django SimpleJWT expects 'username', not 'email' by default
                 password
             });
 
-            // Extract tokens from response
+            // Standard SimpleJWT response: { access: "...", refresh: "..." }
             const { access, refresh } = response.data;
 
-            // Store data in LocalStorage
+            if (!access) throw new Error("No access token received!");
+
+            // 1. Store Tokens
             localStorage.setItem('access_token', access);
             localStorage.setItem('refresh_token', refresh);
+            setToken(access);
 
-            // Set User State
-            // (Ideally, you would fetch the full profile from /api/me/ here)
-            const userData = { username, email: "user@example.com" };
+            // 2. Set User Data (Mocking it for now since /token/ doesn't return user info)
+            const userData = { username: username };
             localStorage.setItem('user_data', JSON.stringify(userData));
+            setUser(userData);
 
-            setCurrentUser(userData);
-            toast.success("System Access Granted.");
-
-            // Redirect to Dashboard
+            toast.success('System Access Granted.');
             navigate('/dashboard');
             return true;
 
         } catch (error) {
             console.error("Login Error:", error);
 
-            // Detailed Error Handling for easier debugging
+            // Smart Error Handling
             if (error.code === "ERR_NETWORK") {
-                toast.error(`Backend Unreachable at ${API_URL}. Check Docker logs.`);
+                toast.error(`Cannot connect to VM at ${API_URL}`);
             } else if (error.response?.status === 401) {
-                toast.error("Access Denied: Invalid Credentials.");
+                toast.error("Invalid Username or Password.");
             } else {
-                toast.error("Login failed. Please try again.");
+                toast.error("Login failed. Check console.");
             }
             return false;
         }
     };
 
-    // 6. Register Action
+    // 📝 3. Register Function
     const register = async (userData) => {
         try {
-            console.log(`📡 Registering at: ${API_URL}/register/`);
-
-            // POST request to create user
+            // Using the dynamic URL
             await axios.post(`${API_URL}/register/`, userData);
 
-            toast.success("Identity Created Successfully.");
+            toast.success('Identity Created Successfully.');
 
-            // Auto-Login after registration
-            // We reuse the login function we just wrote
+            // Automatically log the user in after registration
             return await login(userData.username, userData.password);
 
         } catch (error) {
-            console.error("Registration Error:", error);
-            if (error.response?.data?.username) {
-                toast.error("Username already taken.");
-            } else {
-                toast.error("Registration failed. Try a different username.");
-            }
+            console.error("Register Error:", error);
+            const msg = error.response?.data?.username ? "Username taken" : "Registration failed";
+            toast.error(msg);
             return false;
         }
     };
 
-    // 7. Logout Action
+    // 🚪 4. Logout Function
     const logout = () => {
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('user_data');
-        setCurrentUser(null);
-        toast('Session Terminated', { icon: '👋' });
-        navigate('/');
+        setToken(null);
+        setUser(null);
+        toast.success('Session Terminated.');
+        navigate('/login');
     };
 
     const value = {
-        currentUser,
+        user,
+        token,
+        loading,
         login,
         register,
         logout,
-        loading
+        isAuthenticated: !!token
     };
 
     return (
         <AuthContext.Provider value={value}>
-            {!loading && children}
+            {!loading ? children : (
+                <div className="min-h-screen bg-black text-indigo-500 flex items-center justify-center font-mono animate-pulse">
+                    Initializing Neural Interface...
+                </div>
+            )}
         </AuthContext.Provider>
     );
 };
