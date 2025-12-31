@@ -9,7 +9,7 @@ import { Loader2 } from 'lucide-react';
 import MainLayout from './layouts/MainLayout';
 import Preloader from './components/Preloader';
 
-// ✅ THIS WILL WORK NOW (because you created src/pages/index.js)
+// ✅ Clean Import (Importing from the index.js barrel)
 import * as Pages from './pages';
 
 const AppRoutes = () => {
@@ -50,21 +50,26 @@ function App() {
   return (
     <BrowserRouter>
       {loading ? (
+        // 1. The Preloader (Handles its own fade-out)
         <Preloader onComplete={() => setLoading(false)} />
       ) : (
-        <AuthProvider>
-          <AppRoutes />
-          <Toaster
-              position="top-right"
-              toastOptions={{
-                  style: {
-                      background: '#0f172a',
-                      color: '#e2e8f0',
-                      border: '1px solid #1e293b',
-                  },
-              }}
-          />
-        </AuthProvider>
+        // 2. The App (Wrapped to fade IN smoothly)
+        // ✅ This <div> is the magic that stops the white flash
+        <div className="animate-app-entry">
+          <AuthProvider>
+            <AppRoutes />
+            <Toaster
+                position="top-right"
+                toastOptions={{
+                    style: {
+                        background: '#0f172a',
+                        color: '#e2e8f0',
+                        border: '1px solid #1e293b',
+                    },
+                }}
+            />
+          </AuthProvider>
+        </div>
       )}
     </BrowserRouter>
   );
