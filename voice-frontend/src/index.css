@@ -1,3 +1,32 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* 1. Force Black Background (Stops White Flash) */
+body {
+  background-color: #000000;
+  color: #e2e8f0;
+  margin: 0;
+  overflow-x: hidden; /* Standard setting */
+}
+
+/* 2. Opacity-Only Animation */
+/* I removed 'transform: scale()' so your Navbar & Sidebar stay FIXED */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-app-entry {
+  /* Only animate opacity. Safe for fixed elements. */
+  animation: fadeIn 1s ease-out forwards;
+}
+
+/* 3. Utility for the Scrolling Sidebar */
+html {
+  scroll-behavior: smooth;
+}
