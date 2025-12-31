@@ -1,15 +1,17 @@
-import { Github, Twitter, Disc } from 'lucide-react';
+// src/components/Footer.jsx
+import { Link } from 'react-router-dom';
+import { Github, Twitter, Disc, Activity } from 'lucide-react';
 
 const Footer = () => {
     return (
-        <footer className="border-t border-white/5 bg-black/80 backdrop-blur-sm relative overflow-hidden">
+        <footer className="border-t border-white/5 bg-black/80 backdrop-blur-sm relative overflow-hidden mt-auto">
             <div className="container mx-auto px-6 py-20">
 
                 {/* 🏗️ Bento Grid Layout */}
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-8 mb-20">
 
                     {/* Brand Section */}
-                    <div className="md:col-span-5 flex flex-col justify-between h-full">
+                    <div className="md:col-span-5 flex flex-col justify-between h-full space-y-6">
                         <div>
                             <div className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center mb-6 border border-white/10">
                                 <Disc className="w-5 h-5 text-indigo-400 animate-spin-slow" />
@@ -22,29 +24,47 @@ const Footer = () => {
                                 Precise control, ultra-low latency, and unmatched realism.
                             </p>
                         </div>
+
+                        {/* ✅ SHINY IDEA: Added System Status Here */}
+                        <div className="flex items-center gap-3">
+                            <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                            </span>
+                            <Link to="/support" className="text-xs font-mono text-emerald-500 hover:text-emerald-400 transition-colors">
+                                All Systems Operational
+                            </Link>
+                        </div>
                     </div>
 
                     {/* Navigation Grid */}
                     <div className="md:col-span-2">
                         <h4 className="text-white text-sm font-semibold mb-6">Product</h4>
                         <ul className="space-y-4 text-xs text-slate-500">
-                            <li><a href="#" className="hover:text-indigo-400 transition">Changelog</a></li>
-                            <li><a href="#" className="hover:text-indigo-400 transition">Documentation</a></li>
-                            <li><a href="#" className="hover:text-indigo-400 transition">Integration</a></li>
+                            {/* Linked to real pages */}
+                            <li><Link to="/studio" className="hover:text-indigo-400 transition">Studio</Link></li>
+                            <li><Link to="/projects" className="hover:text-indigo-400 transition">Showcase</Link></li>
+                            <li><Link to="/developers" className="hover:text-indigo-400 transition">API</Link></li>
+                            <li><Link to="/billing" className="hover:text-indigo-400 transition">Pricing</Link></li>
                         </ul>
                     </div>
                     <div className="md:col-span-2">
                         <h4 className="text-white text-sm font-semibold mb-6">Company</h4>
                         <ul className="space-y-4 text-xs text-slate-500">
-                            <li><a href="#" className="hover:text-indigo-400 transition">Manifesto</a></li>
+                            <li><Link to="/" className="hover:text-indigo-400 transition">Mission</Link></li>
+                            <li><Link to="/contact" className="hover:text-indigo-400 transition">Contact Sales</Link></li>
+                            <li><Link to="/support" className="hover:text-indigo-400 transition">Support</Link></li>
                             <li><a href="#" className="hover:text-indigo-400 transition">Careers</a></li>
-                            <li><a href="#" className="hover:text-indigo-400 transition">Press Kit</a></li>
                         </ul>
                     </div>
                     <div className="md:col-span-3">
                         <h4 className="text-white text-sm font-semibold mb-6">Stay Updated</h4>
                         <div className="flex gap-2">
-                            <input type="email" placeholder="Enter email" className="bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-xs text-white w-full focus:outline-none focus:border-indigo-500 transition" />
+                            <input
+                                type="email"
+                                placeholder="Enter email"
+                                className="bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-xs text-white w-full focus:outline-none focus:border-indigo-500 transition"
+                            />
                             <button className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition">
                                 Sub
                             </button>

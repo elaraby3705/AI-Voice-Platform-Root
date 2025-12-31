@@ -1,101 +1,70 @@
 // src/context/AuthContext.jsx
-import { createContext, useState, useEffect } from 'react';
-import api from '../api/axios';
-import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import { createContext, useContext, useEffect, useState } from "react";
+import {
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut,
+    onAuthStateChanged,
+    GoogleAuthProvider,
+    signInWithPopup
+} from "firebase/auth";
+import { auth } from "../firebase"; // Ensure this path is correct for your project
 
+// ✅ FIX: Export the Context directly so other files (like useAuth.js) can use it
 export const AuthContext = createContext();
 
-export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
-    const [token, setToken] = useState(localStorage.getItem('token') || null);
-    const [loading, setLoading] = useState(true); // Prevents flickering while checking auth
+// This hook is here for convenience, but since you have a separate useAuth.js,
+// you might be using that one instead. That is fine.
+export function useAuth() {
+    return useContext(AuthContext);
+}
 
-    const navigate = useNavigate();
+export function AuthProvider({ children }) {
+    const [currentUser, setCurrentUser] = useState(null);
+    const [loading, setLoading] = useState(true);
 
-    // 🔄 1. Check if user is already logged in when the app starts
+    // Sign Up (Email/Pass)
+    function signup(email, password) {
+        return createUserWithEmailAndPassword(auth, email, password);
+    }
+
+    // Login (Email/Pass)
+    function login(email, password) {
+        return signInWithEmailAndPassword(auth, email, password);
+    }
+
+    // Login (Google)
+    function googleSignIn() {
+        const provider = new GoogleAuthProvider();
+        return signInWithPopup(auth, provider);
+    }
+
+    // Logout
+    function logout() {
+        return signOut(auth);
+    }
+
+    // Listen for auth state changes (Persist session)
     useEffect(() => {
-        const checkAuth = async () => {
-            const storedToken = localStorage.getItem('token');
-            if (storedToken) {
-                setToken(storedToken);
-                // Optional: If you had a /me endpoint, you would fetch user details here
-                // setUser({ name: "Commander" });
-            }
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            setCurrentUser(user);
             setLoading(false);
-        };
-        checkAuth();
+        });
+
+        return unsubscribe;
     }, []);
 
-// 🔑 2. Login Function (Final Production Version)
-    const login = async (email, password) => {
-        try {
-            const response = await api.post('/auth/login/', { email, password });
-            const accessToken = response.data.token; // key token
-            const userData = response.data.user;     // user actual data
-
-            if (!accessToken) {
-                throw new Error("Login succeeded but no token received!");
-            }
-
-            //storing token in browser
-            localStorage.setItem('token', accessToken);
-            setToken(accessToken);
-
-            //storing user data to be displayed in the dashboard
-            setUser(userData);
-
-            toast.success('System Access Granted.');
-            navigate('/dashboard');
-
-        } catch (error) {
-            console.error("Login Error:", error);
-            const msg = error.response?.data?.non_field_errors?.[0] ||
-                        error.response?.data?.detail ||
-                        "Login failed.";
-            toast.error(msg);
-        }
-    };
-
-    // 🚪 3. Logout Function
-    const logout = () => {
-        localStorage.removeItem('token');
-        setToken(null);
-        setUser(null);
-        toast.success('Session Terminated.');
-        navigate('/login');
-    };
-
-    // 📝 4. Register Function (Placeholder/Basic)
-    const register = async (username, password, email) => {
-        try {
-            await api.post('/register/', { username, password, email });
-            toast.success('Identity Created. Please log in.');
-            navigate('/login');
-        } catch (error) {
-            console.error("Register Error:", error);
-            toast.error("Registration failed. Try again.");
-        }
-    };
-
     const value = {
-        user,
-        token,
-        loading,
+        currentUser,
+        signup,
         login,
-        logout,
-        register,
-        isAuthenticated: !!token
+        googleSignIn,
+        logout
     };
 
     return (
         <AuthContext.Provider value={value}>
-            {/* Show a loading screen while checking for token */}
-            {!loading ? children : (
-                <div className="min-h-screen bg-black text-slate-400 flex items-center justify-center font-mono animate-pulse">
-                    Initializing Neural Interface...
-                </div>
-            )}
+            {!loading && children}
         </AuthContext.Provider>
     );
-};
+}
