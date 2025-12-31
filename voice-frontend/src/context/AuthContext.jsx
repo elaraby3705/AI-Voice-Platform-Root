@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect, useContext } from 'react';
+import { createContext, useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -8,18 +8,16 @@ export const AuthContext = createContext();
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-    // State for User and Token
     const [user, setUser] = useState(null);
     const [token, setToken] = useState(localStorage.getItem('access_token') || null);
     const [loading, setLoading] = useState(true);
-
     const navigate = useNavigate();
 
-    // 🚀 DYNAMIC API URL (The Magic Fix)
-    // This automatically detects your VM IP (192.168.100.30) so you don't get Connection Refused
-    const API_URL = `http://${window.location.hostname}:8000/api`;
+    // 🚀 FIXED: Pointing to the correct "v1/auth" path
+    // This resolves to: http://192.168.100.30:8000/api/v1/auth
+    const API_URL = `http://${window.location.hostname}:8000/api/v1/auth`;
 
-    // 🔄 1. Check Auth on App Start
+    // 1. Check Auth on Load
     useEffect(() => {
         const checkAuth = () => {
             const storedToken = localStorage.getItem('access_token');
@@ -40,29 +38,29 @@ export const AuthProvider = ({ children }) => {
         checkAuth();
     }, []);
 
-    // 🔑 2. Login Function
-    const login = async (username, password) => {
+    // 2. Login Function
+    const login = async (email, password) => { // You likely use 'email' based on your previous messages
         try {
-            console.log(`📡 Connecting to: ${API_URL}/token/`);
+            console.log(`📡 Connecting to: ${API_URL}/login/`);
 
-            // We use standard axios here to ensure we hit the Dynamic IP
-            const response = await axios.post(`${API_URL}/token/`, {
-                username, // Django SimpleJWT expects 'username', not 'email' by default
+            // 👇 UPDATED: Matches your working endpoint
+            const response = await axios.post(`${API_URL}/login/`, {
+                email, // Sending 'email' as per your Postman test
                 password
             });
 
-            // Standard SimpleJWT response: { access: "...", refresh: "..." }
-            const { access, refresh } = response.data;
+            // Adjust this depending on your EXACT response structure
+            // If backend returns { key: "..." } or { token: "..." } change this line
+            const accessToken = response.data.key || response.data.token || response.data.access;
 
-            if (!access) throw new Error("No access token received!");
+            if (!accessToken) throw new Error("No access token received!");
 
-            // 1. Store Tokens
-            localStorage.setItem('access_token', access);
-            localStorage.setItem('refresh_token', refresh);
-            setToken(access);
+            // Store Data
+            localStorage.setItem('access_token', accessToken);
+            setToken(accessToken);
 
-            // 2. Set User Data (Mocking it for now since /token/ doesn't return user info)
-            const userData = { username: username };
+            // Store User (Mock or from response)
+            const userData = response.data.user || { email: email };
             localStorage.setItem('user_data', JSON.stringify(userData));
             setUser(userData);
 
@@ -73,41 +71,38 @@ export const AuthProvider = ({ children }) => {
         } catch (error) {
             console.error("Login Error:", error);
 
-            // Smart Error Handling
             if (error.code === "ERR_NETWORK") {
-                toast.error(`Cannot connect to VM at ${API_URL}`);
-            } else if (error.response?.status === 401) {
-                toast.error("Invalid Username or Password.");
+                toast.error(`Cannot connect to ${API_URL}`);
+            } else if (error.response?.status === 404) {
+                toast.error(`Endpoint not found: ${API_URL}/login/`);
+            } else if (error.response?.status === 401 || error.response?.status === 400) {
+                toast.error("Invalid Email or Password.");
             } else {
-                toast.error("Login failed. Check console.");
+                toast.error("Login failed.");
             }
             return false;
         }
     };
 
-    // 📝 3. Register Function
+    // 3. Register Function
     const register = async (userData) => {
         try {
-            // Using the dynamic URL
+            // 👇 UPDATED: Matches the same pattern
             await axios.post(`${API_URL}/register/`, userData);
 
             toast.success('Identity Created Successfully.');
-
-            // Automatically log the user in after registration
-            return await login(userData.username, userData.password);
+            return await login(userData.email, userData.password);
 
         } catch (error) {
             console.error("Register Error:", error);
-            const msg = error.response?.data?.username ? "Username taken" : "Registration failed";
-            toast.error(msg);
+            toast.error("Registration failed.");
             return false;
         }
     };
 
-    // 🚪 4. Logout Function
+    // 4. Logout Function
     const logout = () => {
         localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
         localStorage.removeItem('user_data');
         setToken(null);
         setUser(null);
@@ -115,15 +110,7 @@ export const AuthProvider = ({ children }) => {
         navigate('/login');
     };
 
-    const value = {
-        user,
-        token,
-        loading,
-        login,
-        register,
-        logout,
-        isAuthenticated: !!token
-    };
+    const value = { user, token, loading, login, register, logout, isAuthenticated: !!token };
 
     return (
         <AuthContext.Provider value={value}>
