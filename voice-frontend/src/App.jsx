@@ -1,6 +1,5 @@
-// src/App.jsx
 import { useState, Suspense } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { Toaster } from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
@@ -9,12 +8,29 @@ import { Loader2 } from 'lucide-react';
 import MainLayout from './layouts/MainLayout';
 import Preloader from './components/Preloader';
 
-// ✅ Clean Import (Importing from the index.js barrel)
-import * as Pages from './pages';
+// Import Pages
+import LandingPage from './pages/LandingPage';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import Studio from './pages/Studio';
+// Add other pages imports here as needed
+
+// 🧠 Smart Layout Wrapper
+const LayoutWrapper = ({ children }) => {
+  const location = useLocation();
+  const appPaths = ['/dashboard', '/studio', '/settings', '/projects', '/billing'];
+  const isAppPage = appPaths.some(path => location.pathname.startsWith(path));
+
+  return isAppPage ? (
+    <div className="bg-[#050505] min-h-screen text-white">{children}</div>
+  ) : (
+    <MainLayout>{children}</MainLayout>
+  );
+};
 
 const AppRoutes = () => {
   return (
-    <MainLayout>
+    <LayoutWrapper>
       <Suspense fallback={
         <div className="flex h-screen items-center justify-center bg-black text-indigo-500">
           <Loader2 className="w-8 h-8 animate-spin" />
@@ -22,25 +38,15 @@ const AppRoutes = () => {
       }>
         <Routes>
           {/* Public Routes */}
-          <Route path="/" element={<Pages.LandingPage />} />
-          <Route path="/login" element={<Pages.Login />} />
-          <Route path="/register" element={<Pages.Register />} />
-          <Route path="/contact" element={<Pages.Contact />} />
-          <Route path="/support" element={<Pages.Support />} />
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<Login />} />
 
-          {/* Protected/App Routes */}
-          <Route path="/dashboard" element={<Pages.Dashboard />} />
-          <Route path="/projects" element={<Pages.Projects />} />
-          <Route path="/studio" element={<Pages.Studio />} />
-          <Route path="/developers" element={<Pages.Developers />} />
-          <Route path="/billing" element={<Pages.Billing />} />
-          <Route path="/settings" element={<Pages.Settings />} />
-
-          {/* 404 Route */}
-          <Route path="*" element={<Pages.NotFound />} />
+          {/* App Routes */}
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/studio" element={<Studio />} />
         </Routes>
       </Suspense>
-    </MainLayout>
+    </LayoutWrapper>
   );
 };
 
@@ -50,24 +56,12 @@ function App() {
   return (
     <BrowserRouter>
       {loading ? (
-        // 1. The Preloader (Handles its own fade-out)
         <Preloader onComplete={() => setLoading(false)} />
       ) : (
-        // 2. The App (Wrapped to fade IN smoothly)
-        // ✅ This <div> is the magic that stops the white flash
         <div className="animate-app-entry">
           <AuthProvider>
             <AppRoutes />
-            <Toaster
-                position="top-right"
-                toastOptions={{
-                    style: {
-                        background: '#0f172a',
-                        color: '#e2e8f0',
-                        border: '1px solid #1e293b',
-                    },
-                }}
-            />
+            <Toaster position="top-right" />
           </AuthProvider>
         </div>
       )}
