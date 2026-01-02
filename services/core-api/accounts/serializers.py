@@ -1,54 +1,48 @@
-# accounts/serializers.py
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from django.contrib.auth.password_validation import validate_password
-from django.contrib.auth import authenticate
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 User = get_user_model()
 
+
+# 1. User Serializer (Fixed: Removed 'username')
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ("id", "email")  # Only email and ID are available now
+
+
+# 2. Registration Serializer
 class RegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=6)
 
     class Meta:
         model = User
-        fields = ("email", "password")   # 👈 username removed completely
-
-    def validate_password(self, value):
-        validate_password(value)
-        return value
+        fields = ("email", "password")
 
     def create(self, validated_data):
-        password = validated_data.pop("password")
-        user = User(**validated_data)
-        user.set_password(password)
-        user.save()
-        return user
-# Create LoginSerializer
+        # Best practice: Use create_user to handle hashing automatically
+        return User.objects.create_user(
+            email=validated_data['email'],
+            password=validated_data['password']
+        )
 
-class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    password = serializers.CharField(write_only=True)
+
+# 3. Custom Login Serializer (The JWT Connector)
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """
+    This replaces your old LoginSerializer.
+    It tells the JWT library to include user details in the response.
+    """
 
     def validate(self, attrs):
-        email = attrs.get("email")
-        password = attrs.get("password")
+        # Generate the standard Access/Refresh tokens
+        data = super().validate(attrs)
 
-        if not email or not password:
-            raise serializers.ValidationError("Email and password are required.")
+        # Add custom user data (so the Frontend knows who logged in)
+        data['user'] = {
+            'id': self.user.id,
+            'email': self.user.email,
+        }
 
-        # Authenticate using email as username
-        user = authenticate(username=email, password=password)
-
-        if not user:
-            raise serializers.ValidationError("Invalid email or password.")
-
-        attrs["user"] = user
-        return attrs
-
-# Serializer for retrieving user data:
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model =User
-        fields = ("id", "email", "username")
-
-
+        return data
