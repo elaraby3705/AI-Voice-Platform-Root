@@ -168,19 +168,28 @@ REST_FRAMEWORK = {
 }
 
 # DRF >> JWT -- to be used later
+REST_FRAMEWORK = {
+     "DEFAULT_AUTHENTICATION_CLASSES": [
+         "rest_framework_simplejwt.authentication.JWTAuthentication",
+     ],
+     "DEFAULT_PERMISSION_CLASSES": [
+         "rest_framework.permissions.IsAuthenticated",
+     ],
+     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+     "PAGE_SIZE": 10,
+ }
 
-# REST_FRAMEWORK = {
-#     "DEFAULT_AUTHENTICATION_CLASSES": [
-#         "rest_framework_simplejwt.authentication.JWTAuthentication",
-#     ],
-#     "DEFAULT_PERMISSION_CLASSES": [
-#         "rest_framework.permissions.IsAuthenticated",
-#     ],
-#     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
-#     "PAGE_SIZE": 10,
-# }
+from datetime import timedelta
 
-# allowing the frontend linking 
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
+
+# allowing the frontend linking
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
