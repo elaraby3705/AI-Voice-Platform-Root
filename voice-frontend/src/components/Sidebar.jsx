@@ -10,9 +10,9 @@ const Sidebar = () => {
     const { logout, user } = useAuth();
     const location = useLocation();
 
-    // Ensure we have a string to prevent errors
-    const displayUser = user?.username || user?.email?.split('@')[0] || 'Operator';
-    const userInitial = displayUser.charAt(0).toUpperCase();
+    // Logic to extract name from email (since backend sends email only)
+    const displayName = user?.email?.split('@')[0] || 'Operator';
+    const initial = displayName.charAt(0).toUpperCase();
 
     const isActive = (path) => location.pathname === path;
 
@@ -105,16 +105,17 @@ const Sidebar = () => {
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center text-xs font-bold text-slate-300 ring-2 ring-black">
-                            {userInitial}
+                            {initial}
                         </div>
                         <div className="overflow-hidden max-w-[100px]">
-                            <div className="text-xs font-bold text-white truncate">{displayUser}</div>
+                            <div className="text-xs font-bold text-white truncate">{displayName}</div>
                             <div className="text-[9px] text-emerald-500 truncate flex items-center gap-1 font-medium">
                                 <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span> Online
                             </div>
                         </div>
                     </div>
-                    <button onClick={logout} className="text-slate-600 hover:text-rose-400 transition-colors p-2 hover:bg-white/5 rounded-lg">
+                    {/* Logout Button */}
+                    <button onClick={logout} className="text-slate-600 hover:text-rose-400 transition-colors p-2 hover:bg-white/5 rounded-lg" title="Sign Out">
                         <LogOut className="w-4 h-4" />
                     </button>
                 </div>
