@@ -13,8 +13,7 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
-    // 🚀 FIXED: Pointing to the correct "v1/auth" path
-    // This resolves to: http://192.168.100.30:8000/api/v1/auth
+    // Dynamic API URL for Localhost/VM
     const API_URL = `http://${window.location.hostname}:8000/api/v1/auth`;
 
     // 1. Check Auth on Load
@@ -25,11 +24,15 @@ export const AuthProvider = ({ children }) => {
 
             if (storedToken) {
                 setToken(storedToken);
+                // Set default axios header so we don't have to repeat it
+                axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+
                 if (storedUser) {
                     try {
                         setUser(JSON.parse(storedUser));
                     } catch (e) {
                         console.error("Error parsing user data", e);
+                        localStorage.clear();
                     }
                 }
             }
@@ -39,30 +42,28 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     // 2. Login Function
-    const login = async (email, password) => { // You likely use 'email' based on your previous messages
+    const login = async (email, password) => {
         try {
-            console.log(`📡 Connecting to: ${API_URL}/login/`);
-
-            // 👇 UPDATED: Matches your working endpoint
             const response = await axios.post(`${API_URL}/login/`, {
-                email, // Sending 'email' as per your Postman test
+                email,
                 password
             });
 
-            // Adjust this depending on your EXACT response structure
-            // If backend returns { key: "..." } or { token: "..." } change this line
-            const accessToken = response.data.key || response.data.token || response.data.access;
+            const { access, refresh, user } = response.data;
 
-            if (!accessToken) throw new Error("No access token received!");
+            if (!access) throw new Error("No access token received!");
 
-            // Store Data
-            localStorage.setItem('access_token', accessToken);
-            setToken(accessToken);
+            // 1. Store Tokens
+            localStorage.setItem('access_token', access);
+            localStorage.setItem('refresh_token', refresh);
+            setToken(access);
 
-            // Store User (Mock or from response)
-            const userData = response.data.user || { email: email };
-            localStorage.setItem('user_data', JSON.stringify(userData));
-            setUser(userData);
+            // 2. Set Axios Default Header
+            axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
+
+            // 3. Store User Data
+            localStorage.setItem('user_data', JSON.stringify(user));
+            setUser(user);
 
             toast.success('System Access Granted.');
             navigate('/dashboard');
@@ -70,13 +71,8 @@ export const AuthProvider = ({ children }) => {
 
         } catch (error) {
             console.error("Login Error:", error);
-
-            if (error.code === "ERR_NETWORK") {
-                toast.error(`Cannot connect to ${API_URL}`);
-            } else if (error.response?.status === 404) {
-                toast.error(`Endpoint not found: ${API_URL}/login/`);
-            } else if (error.response?.status === 401 || error.response?.status === 400) {
-                toast.error("Invalid Email or Password.");
+            if (error.response?.status === 401) {
+                toast.error("Invalid Credentials.");
             } else {
                 toast.error("Login failed.");
             }
@@ -87,11 +83,24 @@ export const AuthProvider = ({ children }) => {
     // 3. Register Function
     const register = async (userData) => {
         try {
-            // 👇 UPDATED: Matches the same pattern
-            await axios.post(`${API_URL}/register/`, userData);
+            const response = await axios.post(`${API_URL}/register/`, userData);
+
+            if (response.data.access) {
+                const { access, refresh, user } = response.data;
+                localStorage.setItem('access_token', access);
+                localStorage.setItem('refresh_token', refresh);
+                localStorage.setItem('user_data', JSON.stringify(user));
+                setToken(access);
+                setUser(user);
+                axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
+                toast.success('Identity Created. Logging in...');
+                navigate('/dashboard');
+                return true;
+            }
 
             toast.success('Identity Created Successfully.');
-            return await login(userData.email, userData.password);
+            navigate('/login');
+            return true;
 
         } catch (error) {
             console.error("Register Error:", error);
@@ -101,9 +110,25 @@ export const AuthProvider = ({ children }) => {
     };
 
     // 4. Logout Function
-    const logout = () => {
+    const logout = async () => {
+        const refreshToken = localStorage.getItem('refresh_token');
+
+        if (refreshToken && token) {
+            try {
+                await axios.post(`${API_URL}/logout/`,
+                    { refresh: refreshToken },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+            } catch (err) {
+                console.warn("Server logout failed, clearing local anyway.");
+            }
+        }
+
         localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
         localStorage.removeItem('user_data');
+        delete axios.defaults.headers.common['Authorization'];
+
         setToken(null);
         setUser(null);
         toast.success('Session Terminated.');

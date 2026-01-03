@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../context/AuthContext';
+import { Link } from 'react-router-dom';
+import axios from 'axios';
 import {
     Activity, Cpu, Globe, ArrowUpRight, ArrowDownRight,
-    Terminal, Clock, Plus, Copy, BookOpen, ShieldCheck, Zap
+    Terminal, Clock, Plus, Copy, BookOpen, ShieldCheck, Zap,
+    FileAudio, Calendar, MoreHorizontal, Loader2
 } from 'lucide-react';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -11,18 +14,38 @@ import {
 
 const Dashboard = () => {
     const { user } = useAuth();
-    // Fallback for user name to prevent crash
-    const displayUser = user?.username || user?.email?.split('@')[0] || 'Operator';
+    const [projects, setProjects] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    // Mock Data: Throughput
+    // Dynamic User Name
+    const displayUser = user?.email?.split('@')[0] || 'Operator';
+
+    // 1. Fetch Real Projects from Django
+    useEffect(() => {
+        const fetchProjects = async () => {
+            try {
+                // We use the dynamic hostname (localhost or VM IP)
+                const API_URL = `http://${window.location.hostname}:8000/api/v1/projects/`;
+                const response = await axios.get(API_URL);
+                setProjects(response.data);
+            } catch (error) {
+                console.error("Failed to fetch projects", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (user) {
+            fetchProjects();
+        }
+    }, [user]);
+
+    // Mock Data: Throughput (You can hook this to real analytics later)
     const trafficData = [
-        { time: '10:00', requests: 120, lat: 45 },
-        { time: '10:05', requests: 180, lat: 48 },
-        { time: '10:10', requests: 150, lat: 42 },
-        { time: '10:15', requests: 290, lat: 55 },
-        { time: '10:20', requests: 350, lat: 52 },
-        { time: '10:25', requests: 280, lat: 45 },
-        { time: '10:30', requests: 420, lat: 40 },
+        { time: '10:00', requests: 120 }, { time: '10:05', requests: 180 },
+        { time: '10:10', requests: 150 }, { time: '10:15', requests: 290 },
+        { time: '10:20', requests: 350 }, { time: '10:25', requests: 280 },
+        { time: '10:30', requests: 420 },
     ];
 
     return (
@@ -30,7 +53,7 @@ const Dashboard = () => {
             <Sidebar />
             <main className="ml-64 flex-1 p-10 overflow-y-auto">
 
-                {/* --- Header & Status Beacon --- */}
+                {/* --- Header --- */}
                 <div className="mb-10 flex justify-between items-end animate-fade-in-up">
                     <div>
                         <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">System Overview</h1>
@@ -41,9 +64,9 @@ const Dashboard = () => {
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                           <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                         </div>
-                        <span className="text-xs font-medium text-slate-300">All Systems Operational</span>
+                        <span className="text-xs font-medium text-slate-300">System Online</span>
                         <div className="h-3 w-px bg-white/10 mx-1"></div>
-                        <span className="text-xs font-mono text-slate-500">us-east-1</span>
+                        <span className="text-xs font-mono text-slate-500">v2.4.0</span>
                     </div>
                 </div>
 
@@ -58,15 +81,13 @@ const Dashboard = () => {
                 {/* --- Main Analytics Grid --- */}
                 <div className="grid grid-cols-3 gap-6 mb-8 animate-fade-in-up delay-200">
 
-                    {/* Traffic Chart (2 Cols) */}
+                    {/* Traffic Chart */}
                     <div className="col-span-2 bg-[#0A0A0A] border border-white/10 rounded-3xl p-6 relative overflow-hidden group">
                         <div className="flex justify-between items-center mb-6 relative z-10">
                             <h3 className="text-sm font-bold text-white flex items-center gap-2">
                                 <Activity className="w-4 h-4 text-indigo-500" /> Real-time Throughput
                             </h3>
-                            <div className="flex gap-2">
-                                <span className="text-[10px] font-bold bg-indigo-500/10 text-indigo-400 px-2 py-1 rounded border border-indigo-500/20">LIVE</span>
-                            </div>
+                            <span className="text-[10px] font-bold bg-indigo-500/10 text-indigo-400 px-2 py-1 rounded border border-indigo-500/20">LIVE</span>
                         </div>
 
                         <div className="h-[250px] w-full relative z-10">
@@ -81,68 +102,84 @@ const Dashboard = () => {
                                     <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                                     <XAxis dataKey="time" stroke="#475569" fontSize={10} tickLine={false} axisLine={false} />
                                     <YAxis stroke="#475569" fontSize={10} tickLine={false} axisLine={false} />
-                                    <Tooltip
-                                        contentStyle={{ backgroundColor: '#000', border: '1px solid #333', borderRadius: '8px' }}
-                                        itemStyle={{ color: '#fff' }}
-                                    />
+                                    <Tooltip contentStyle={{ backgroundColor: '#000', border: '1px solid #333', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
                                     <Area type="monotone" dataKey="requests" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorReq)" />
                                 </AreaChart>
                             </ResponsiveContainer>
                         </div>
-
-                        {/* Glow Effect */}
                         <div className="absolute -top-20 -right-20 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl group-hover:bg-indigo-500/10 transition-all duration-1000"></div>
                     </div>
 
-                    {/* KPI Cards (Stacked) */}
+                    {/* KPI Cards */}
                     <div className="col-span-1 space-y-4">
                         <KpiCard title="API Latency" value="42ms" change="-12%" trend="down" icon={Clock} color="text-emerald-400" />
-                        <KpiCard title="Success Rate" value="99.98%" change="+0.2%" trend="up" icon={Zap} color="text-indigo-400" />
+                        <KpiCard title="Total Projects" value={projects.length} change="Just now" trend="neutral" icon={Zap} color="text-indigo-400" />
                         <KpiCard title="Active Workers" value="16/24" change="Idle" trend="neutral" icon={Cpu} color="text-yellow-400" />
                     </div>
                 </div>
 
-                {/* --- Bottom Row: Logs & Activity Heatmap --- */}
-                <div className="grid grid-cols-3 gap-6 animate-fade-in-up delay-300">
+                {/* --- Bottom Row: Recent Projects (Replacing Logs) --- */}
+                <div className="grid grid-cols-1 gap-6 animate-fade-in-up delay-300">
 
-                    {/* Activity Heatmap */}
-                    <div className="col-span-1 bg-[#0A0A0A] border border-white/10 rounded-3xl p-6">
-                        <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-                            <Globe className="w-4 h-4 text-slate-500" /> Generation Activity
-                        </h3>
-                        <div className="grid grid-cols-7 gap-1">
-                            {[...Array(84)].map((_, i) => {
-                                const opacity = Math.random() > 0.7 ? Math.random() : 0.1;
-                                return (
-                                    <div
-                                        key={i}
-                                        className="w-full pt-[100%] rounded-sm bg-indigo-500 transition-all hover:scale-125 hover:z-10 relative"
-                                        style={{ opacity: Math.max(0.1, opacity) }}
-                                    ></div>
-                                )
-                            })}
-                        </div>
-                    </div>
-
-                    {/* Live Terminal */}
-                    <div className="col-span-2 bg-[#0A0A0A] border border-white/10 rounded-3xl p-6 flex flex-col font-mono text-xs overflow-hidden">
-                        <div className="flex justify-between items-center mb-4 border-b border-white/5 pb-2">
-                            <h3 className="font-bold text-slate-400 flex items-center gap-2">
-                                <Terminal className="w-3 h-3" /> ./system_logs.log
+                    <div className="bg-[#0A0A0A] border border-white/10 rounded-3xl p-6 flex flex-col min-h-[300px]">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                                <FileAudio className="w-4 h-4 text-slate-500" /> Recent Projects
                             </h3>
-                            <div className="flex gap-1.5">
-                                <div className="w-2.5 h-2.5 rounded-full bg-red-500/20 border border-red-500/50"></div>
-                                <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/20 border border-yellow-500/50"></div>
-                                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/20 border border-emerald-500/50"></div>
+                            <Link to="/projects" className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">View All</Link>
+                        </div>
+
+                        {loading ? (
+                            <div className="flex-1 flex items-center justify-center text-slate-500">
+                                <Loader2 className="w-6 h-6 animate-spin" />
                             </div>
-                        </div>
-                        <div className="flex-1 space-y-2 overflow-y-auto pr-2">
-                            <LogLine time="10:42:01" type="INFO" msg="User session verified" />
-                            <LogLine time="10:42:05" type="POST" msg="/api/v1/synthesis/stream [200 OK]" color="text-emerald-400" />
-                            <LogLine time="10:42:12" type="WARN" msg="Memory usage peak detected (pod-12)" color="text-yellow-400" />
-                            <LogLine time="10:43:00" type="INFO" msg="Auto-scaling trigger: +2 instances" />
-                            <LogLine time="10:43:45" type="DB" msg="Backup snapshot created (4.2MB)" color="text-indigo-400" />
-                        </div>
+                        ) : projects.length > 0 ? (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="border-b border-white/5 text-[10px] text-slate-500 uppercase tracking-widest font-bold">
+                                            <th className="pb-3 pl-2">Project Name</th>
+                                            <th className="pb-3">Voice Model</th>
+                                            <th className="pb-3">Created</th>
+                                            <th className="pb-3 text-right">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="text-xs">
+                                        {projects.map((project) => (
+                                            <tr key={project.id} className="group hover:bg-white/[0.02] transition-colors border-b border-white/5 last:border-0">
+                                                <td className="py-3 pl-2 font-medium text-white flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded bg-indigo-500/10 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-500 group-hover:text-white transition-all">
+                                                        <FileAudio className="w-4 h-4" />
+                                                    </div>
+                                                    {project.title}
+                                                </td>
+                                                <td className="py-3 text-slate-400">{project.voice_id}</td>
+                                                <td className="py-3 text-slate-500 font-mono">
+                                                    <div className="flex items-center gap-1">
+                                                        <Calendar className="w-3 h-3" />
+                                                        {project.created_at_formatted?.split(' ')[0]}
+                                                    </div>
+                                                </td>
+                                                <td className="py-3 text-right">
+                                                    <span className="px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold border border-emerald-500/20">
+                                                        Ready
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            <div className="flex-1 flex flex-col items-center justify-center text-slate-500 border-2 border-dashed border-white/5 rounded-2xl p-8">
+                                <FileAudio className="w-10 h-10 mb-3 opacity-20" />
+                                <p className="text-sm font-medium text-slate-400 mb-1">No projects yet</p>
+                                <p className="text-xs text-slate-600 mb-4">Create your first AI voice generation to see it here.</p>
+                                <button className="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-500 transition-colors">
+                                    Create New Project
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -182,14 +219,6 @@ const KpiCard = ({ title, value, change, trend, icon: Icon, color }) => (
                 {change}
             </div>
         </div>
-    </div>
-);
-
-const LogLine = ({ time, type, msg, color = "text-slate-400" }) => (
-    <div className="flex gap-3 hover:bg-white/5 p-1 rounded transition-colors cursor-default">
-        <span className="text-slate-600 opacity-50">{time}</span>
-        <span className={`font-bold ${color} w-10 text-right`}>{type}</span>
-        <span className="text-slate-300 truncate">{msg}</span>
     </div>
 );
 
