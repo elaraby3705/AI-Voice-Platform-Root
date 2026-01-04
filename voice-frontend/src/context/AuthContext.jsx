@@ -16,30 +16,45 @@ export const AuthProvider = ({ children }) => {
     // Dynamic API URL for Localhost/VM
     const API_URL = `http://${window.location.hostname}:8000/api/v1/auth`;
 
-    // 1. Check Auth on Load
+    // 1. Check Auth on Load & Fetch User (Using the 'Me' Endpoint)
     useEffect(() => {
-        const checkAuth = () => {
+        const initAuth = async () => {
             const storedToken = localStorage.getItem('access_token');
-            const storedUser = localStorage.getItem('user_data');
 
             if (storedToken) {
                 setToken(storedToken);
-                // Set default axios header so we don't have to repeat it
                 axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
 
-                if (storedUser) {
-                    try {
-                        setUser(JSON.parse(storedUser));
-                    } catch (e) {
-                        console.error("Error parsing user data", e);
-                        localStorage.clear();
-                    }
+                // ⚠️ NEW: We try to fetch fresh user data from the backend
+                // This ensures the token is actually valid on the server
+                try {
+                    await fetchUser();
+                } catch (error) {
+                    console.log("Token invalid or expired");
+                    logout(false); // Logout without API call if token is invalid
                 }
+            } else {
+                setLoading(false);
             }
-            setLoading(false);
         };
-        checkAuth();
+
+        initAuth();
     }, []);
+
+    // 🆕 4. Fetch User Function (The Missing Endpoint)
+    const fetchUser = async () => {
+        try {
+            // GET /api/v1/auth/me/
+            const response = await axios.get(`${API_URL}/me/`);
+            setUser(response.data);
+            localStorage.setItem('user_data', JSON.stringify(response.data));
+            setLoading(false);
+        } catch (error) {
+            console.error("Failed to fetch user", error);
+            setLoading(false);
+            throw error; // Let the caller handle the error
+        }
+    };
 
     // 2. Login Function
     const login = async (email, password) => {
@@ -53,17 +68,23 @@ export const AuthProvider = ({ children }) => {
 
             if (!access) throw new Error("No access token received!");
 
-            // 1. Store Tokens
+            // Store Tokens
             localStorage.setItem('access_token', access);
             localStorage.setItem('refresh_token', refresh);
             setToken(access);
 
-            // 2. Set Axios Default Header
+            // Set Header
             axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
 
-            // 3. Store User Data
-            localStorage.setItem('user_data', JSON.stringify(user));
-            setUser(user);
+            // Set User
+            // Note: If your LoginSerializer returns user data, use it.
+            // If not, we call fetchUser() immediately after.
+            if (user) {
+                setUser(user);
+                localStorage.setItem('user_data', JSON.stringify(user));
+            } else {
+                await fetchUser();
+            }
 
             toast.success('System Access Granted.');
             navigate('/dashboard');
@@ -89,10 +110,16 @@ export const AuthProvider = ({ children }) => {
                 const { access, refresh, user } = response.data;
                 localStorage.setItem('access_token', access);
                 localStorage.setItem('refresh_token', refresh);
-                localStorage.setItem('user_data', JSON.stringify(user));
                 setToken(access);
-                setUser(user);
                 axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
+
+                if (user) {
+                    setUser(user);
+                    localStorage.setItem('user_data', JSON.stringify(user));
+                } else {
+                    await fetchUser();
+                }
+
                 toast.success('Identity Created. Logging in...');
                 navigate('/dashboard');
                 return true;
@@ -110,10 +137,11 @@ export const AuthProvider = ({ children }) => {
     };
 
     // 4. Logout Function
-    const logout = async () => {
+    // Added 'callApi' flag to prevent infinite loops if token is already dead
+    const logout = async (callApi = true) => {
         const refreshToken = localStorage.getItem('refresh_token');
 
-        if (refreshToken && token) {
+        if (callApi && refreshToken && token) {
             try {
                 await axios.post(`${API_URL}/logout/`,
                     { refresh: refreshToken },
@@ -124,6 +152,7 @@ export const AuthProvider = ({ children }) => {
             }
         }
 
+        // Cleanup Local Storage
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('user_data');
@@ -131,11 +160,21 @@ export const AuthProvider = ({ children }) => {
 
         setToken(null);
         setUser(null);
-        toast.success('Session Terminated.');
+
+        if (callApi) toast.success('Session Terminated.');
         navigate('/login');
     };
 
-    const value = { user, token, loading, login, register, logout, isAuthenticated: !!token };
+    const value = {
+        user,
+        token,
+        loading,
+        login,
+        register,
+        logout,
+        fetchUser, // Exported so you can manually refresh user data if needed
+        isAuthenticated: !!token
+    };
 
     return (
         <AuthContext.Provider value={value}>
