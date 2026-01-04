@@ -108,7 +108,7 @@ const Sidebar = () => {
                             {initial}
                         </div>
                         <div className="overflow-hidden max-w-[100px]">
-                            <div className="text-xs font-bold text-white truncate">{displayName}</div>
+                            <div className="text-xs font-bold text-white truncate"> title={user?.email}> {displayName}</div>
                             <div className="text-[9px] text-emerald-500 truncate flex items-center gap-1 font-medium">
                                 <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span> Online
                             </div>
