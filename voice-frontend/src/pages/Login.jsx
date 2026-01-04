@@ -1,14 +1,13 @@
-// src/pages/Login.jsx
 import { useState } from 'react';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../context/AuthContext'; // Updated path to match your structure
 import { Link } from 'react-router-dom';
-import { Mic, Lock, User, ArrowRight, Loader2 } from 'lucide-react';
+import { Mic, Lock, Mail, ArrowRight, Loader2 } from 'lucide-react';
 
 const Login = () => {
-    const { login } = useAuth(); // Connect to the "Brain"
+    const { login } = useAuth();
 
     const [formData, setFormData] = useState({
-        username: '',
+        email: '',
         password: ''
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -20,15 +19,18 @@ const Login = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
-        // Call the login function from AuthContext
-        await login(formData.username, formData.password);
+
+        // Pass 'email' instead of 'username' to match the new Backend
+        await login(formData.email, formData.password);
+
         setIsSubmitting(false);
     };
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-[80vh] px-4">
+        // Fixed: min-h-screen ensures perfect vertical centering
+        <div className="flex flex-col items-center justify-center min-h-screen px-4 bg-[#050505]">
 
-            {/* 🌌 Background Glow Effect specific to this page */}
+            {/* 🌌 Background Glow Effect */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-indigo-500/10 blur-[100px] rounded-full pointer-events-none" />
 
             <div className="w-full max-w-md relative z-10">
@@ -46,20 +48,20 @@ const Login = () => {
                 <div className="bg-black/40 backdrop-blur-xl border border-white/10 p-8 rounded-2xl shadow-2xl">
                     <form onSubmit={handleSubmit} className="space-y-6">
 
-                        {/* Username Input */}
+                        {/* Email Input (Changed from Username) */}
                         <div className="space-y-2">
-                            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1">Username</label>
+                            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1">Email Identity</label>
                             <div className="relative group">
                                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                    <User className="h-4 w-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
+                                    <Mail className="h-4 w-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
                                 </div>
                                 <input
-                                    type="text"
-                                    name="username"
-                                    value={formData.username}
+                                    type="email"
+                                    name="email"
+                                    value={formData.email}
                                     onChange={handleChange}
                                     className="block w-full pl-11 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all text-sm"
-                                    placeholder="CommanderName"
+                                    placeholder="human@example.com"
                                     required
                                 />
                             </div>

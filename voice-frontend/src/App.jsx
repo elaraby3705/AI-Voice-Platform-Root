@@ -1,5 +1,5 @@
 import { useState, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { Toaster } from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
@@ -11,21 +11,49 @@ import Preloader from './components/Preloader';
 // Import Pages
 import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
+import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Studio from './pages/Studio';
-// Add other pages imports here as needed
+import Contact from './pages/Contact';
+import Developers from './pages/Developers';
+import NotFound from './pages/NotFound';
+import Billing from './pages/Billing';
+import Settings from './pages/Settings';
+import Projects from './pages/Projects';
+import VoiceSessions from './pages/VoiceSessions';
+import Support from './pages/Support';
 
-// 🧠 Smart Layout Wrapper
+// 🧠 Smart Layout Wrapper (Updated Logic)
 const LayoutWrapper = ({ children }) => {
   const location = useLocation();
-  const appPaths = ['/dashboard', '/studio', '/settings', '/projects', '/billing'];
+
+  // 1. App Pages (Dashboard Sidebar Layout)
+  const appPaths = [
+    '/dashboard', '/studio', '/settings', '/projects',
+    '/billing', '/voicesessions', '/developers', '/support'
+  ];
+
+  // 2. Full Screen Pages (No Navbar, No Footer) 👈 THIS IS NEW
+  // These pages handle their own layout completely
+  const fullScreenPaths = ['/login', '/register', '/notfound'];
+
   const isAppPage = appPaths.some(path => location.pathname.startsWith(path));
 
-  return isAppPage ? (
-    <div className="bg-[#050505] min-h-screen text-white">{children}</div>
-  ) : (
-    <MainLayout>{children}</MainLayout>
-  );
+  // Check if current path is one of the full screen paths
+  const isFullScreen = fullScreenPaths.some(path => location.pathname.startsWith(path));
+
+  // CASE 1: Dashboard App
+  if (isAppPage) {
+    return <div className="bg-[#050505] min-h-screen text-white">{children}</div>;
+  }
+
+  // CASE 2: Auth or 404 (Full Screen)
+  if (isFullScreen) {
+    return <>{children}</>; // Renders without MainLayout
+  }
+
+  // CASE 3: Public Website (Landing, Contact) -> Has Navbar & Footer
+  return <MainLayout>{children}</MainLayout>;
 };
 
 const AppRoutes = () => {
@@ -37,13 +65,28 @@ const AppRoutes = () => {
         </div>
       }>
         <Routes>
-          {/* Public Routes */}
+          {/* --- Public Website --- */}
           <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<Login />} />
+          <Route path="/contact" element={<Contact />} />
 
-          {/* App Routes */}
+          {/* --- Full Screen Auth & Errors --- */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+
+          {/* --- Dashboard App --- */}
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/studio" element={<Studio />} />
+          <Route path="/projects" element={<Projects />} />
+          <Route path="/voicesessions" element={<VoiceSessions />} />
+          <Route path="/billing" element={<Billing />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/developers" element={<Developers />} />
+          <Route path="/support" element={<Support />} />
+
+          {/* --- 404 Handling --- */}
+          <Route path="/notfound" element={<NotFound />} />
+          {/* Catch-all redirects to /notfound */}
+          <Route path="*" element={<Navigate to="/notfound" replace />} />
         </Routes>
       </Suspense>
     </LayoutWrapper>
@@ -61,7 +104,13 @@ function App() {
         <div className="animate-app-entry">
           <AuthProvider>
             <AppRoutes />
-            <Toaster position="top-right" />
+            <Toaster position="top-right" toastOptions={{
+              style: {
+                background: '#333',
+                color: '#fff',
+                fontSize: '14px',
+              },
+            }}/>
           </AuthProvider>
         </div>
       )}
