@@ -1,20 +1,33 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
+import { useLiveKitAuth } from '../hooks/useLiveKitAuth'; // Import the Hook
+// Import LiveKit Components
+import { LiveKitRoom, RoomAudioRenderer, ControlBar, BarVisualizer, useConnectionState, ConnectionState } from '@livekit/components-react';
+import '@livekit/components-styles';
+
 import {
     Play, Download, Sparkles, Sliders, History,
-    Save, RotateCcw, Volume2, Mic2, FileAudio, Wand2
+    Save, RotateCcw, Volume2, Mic2, FileAudio, Wand2,
+    MessageSquare, Activity, Wifi
 } from 'lucide-react';
 
 const Studio = () => {
+    // State for Mode Switching (Text Generation vs Live Voice)
+    const [mode, setMode] = useState('text'); // 'text' or 'voice'
+
+    // --- Existing Text States ---
     const [text, setText] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [stability, setStability] = useState(50);
     const [clarity, setClarity] = useState(75);
     const [selectedVoice, setSelectedVoice] = useState('Sarah');
 
+    // --- LiveKit Logic ---
+    const { roomToken, wsUrl, error: lkError, isConnecting: lkConnecting } = useLiveKitAuth();
+
+    // Text Gen Simulation
     const handleGenerate = () => {
         setIsGenerating(true);
-        // Simulation delay
         setTimeout(() => setIsGenerating(false), 3000);
     };
 
@@ -29,7 +42,7 @@ const Studio = () => {
             <main className="ml-64 flex-1 h-screen flex overflow-hidden">
 
                 {/* --- LEFT: Config Panel --- */}
-                <div className="w-80 bg-[#080808] border-r border-white/10 p-6 flex flex-col gap-8 overflow-y-auto">
+                <div className="w-80 bg-[#080808] border-r border-white/10 p-6 flex flex-col gap-8 overflow-y-auto z-20">
                     <div>
                         <h2 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Voice Model</h2>
                         <div className="space-y-2">
@@ -59,6 +72,7 @@ const Studio = () => {
                         <h2 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                             <Sliders className="w-3 h-3" /> Tuning
                         </h2>
+                        {/* Tuning only makes sense for Text Mode usually, but keeping it visible */}
                         <div className="space-y-6">
                             <RangeSlider label="Stability" value={stability} setValue={setStability} />
                             <RangeSlider label="Clarity Boost" value={clarity} setValue={setClarity} />
@@ -66,87 +80,127 @@ const Studio = () => {
                     </div>
                 </div>
 
-                {/* --- CENTER: Editor --- */}
+                {/* --- CENTER: Editor / Live Room --- */}
                 <div className="flex-1 flex flex-col min-w-0 bg-[#050505] relative">
 
-                    {/* Toolbar */}
+                    {/* Toolbar & Mode Switcher */}
                     <div className="h-14 border-b border-white/10 flex items-center justify-between px-6 bg-[#050505]/50 backdrop-blur-sm z-10">
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-slate-400">Project:</span>
-                            <span className="text-sm font-bold text-white">Untitled Campaign</span>
+                        <div className="flex bg-white/5 rounded-lg p-1 border border-white/10">
+                            <button
+                                onClick={() => setMode('text')}
+                                className={`px-4 py-1.5 rounded-md text-xs font-bold flex items-center gap-2 transition-all ${mode === 'text' ? 'bg-white text-black shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                            >
+                                <MessageSquare className="w-3 h-3" /> Text to Speech
+                            </button>
+                            <button
+                                onClick={() => setMode('voice')}
+                                className={`px-4 py-1.5 rounded-md text-xs font-bold flex items-center gap-2 transition-all ${mode === 'voice' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-400 hover:text-white'}`}
+                            >
+                                <Mic2 className="w-3 h-3" /> Live Voice
+                            </button>
                         </div>
+
                         <div className="flex gap-2">
                             <ActionBtn icon={Save} />
                             <ActionBtn icon={RotateCcw} />
                         </div>
                     </div>
 
-                    {/* Editor Surface */}
-                    <div className="flex-1 p-8 relative group">
-                        <textarea
-                            value={text}
-                            onChange={(e) => setText(e.target.value)}
-                            placeholder="Type your script here..."
-                            className="w-full h-full bg-transparent border-none resize-none focus:outline-none text-xl text-white/90 placeholder:text-white/10 font-light leading-loose font-mono"
-                        />
-
-                        {/* Prompt Helpers */}
-                        <div className="absolute bottom-8 left-8 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Chip label="+ Add Pause" onClick={() => enhancePrompt('pause')} />
-                            <Chip label="+ Make Cheerful" onClick={() => enhancePrompt('happy')} />
-                        </div>
-                    </div>
-
-                    {/* Bottom Control Bar */}
-                    <div className="h-24 border-t border-white/10 bg-[#080808] px-8 flex items-center justify-between relative overflow-hidden">
-
-                        {/* Visualizer Background (Only visible when generating) */}
-                        {isGenerating && (
-                            <div className="absolute inset-0 flex items-center justify-center gap-1 opacity-20 pointer-events-none">
-                                {[...Array(40)].map((_, i) => (
-                                    <div
-                                        key={i}
-                                        className="w-2 bg-indigo-500 rounded-full animate-wave"
-                                        style={{
-                                            height: `${Math.random() * 100}%`,
-                                            animationDuration: `${0.5 + Math.random()}s`
-                                        }}
-                                    />
-                                ))}
+                    {/* 🟢 MODE A: TEXT EDITOR */}
+                    {mode === 'text' && (
+                        <>
+                            <div className="flex-1 p-8 relative group">
+                                <textarea
+                                    value={text}
+                                    onChange={(e) => setText(e.target.value)}
+                                    placeholder="Type your script here..."
+                                    className="w-full h-full bg-transparent border-none resize-none focus:outline-none text-xl text-white/90 placeholder:text-white/10 font-light leading-loose font-mono"
+                                />
+                                <div className="absolute bottom-8 left-8 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Chip label="+ Add Pause" onClick={() => enhancePrompt('pause')} />
+                                    <Chip label="+ Make Cheerful" onClick={() => enhancePrompt('happy')} />
+                                </div>
                             </div>
-                        )}
 
-                        <div className="flex items-center gap-6 z-10">
-                            <div className="text-xs text-slate-500 font-mono flex gap-4">
-                                <span>{text.length} chars</span>
-                                <span>~{(text.length / 15).toFixed(1)}s est.</span>
+                            {/* Bottom Control Bar (Text) */}
+                            <div className="h-24 border-t border-white/10 bg-[#080808] px-8 flex items-center justify-between relative overflow-hidden">
+                                {isGenerating && (
+                                    <div className="absolute inset-0 flex items-center justify-center gap-1 opacity-20 pointer-events-none">
+                                        {[...Array(40)].map((_, i) => (
+                                            <div key={i} className="w-2 bg-indigo-500 rounded-full animate-wave" style={{height: `${Math.random() * 100}%`, animationDuration: `${0.5 + Math.random()}s`}} />
+                                        ))}
+                                    </div>
+                                )}
+                                <div className="flex items-center gap-6 z-10">
+                                    <div className="text-xs text-slate-500 font-mono flex gap-4">
+                                        <span>{text.length} chars</span>
+                                        <span>~{(text.length / 15).toFixed(1)}s est.</span>
+                                    </div>
+                                </div>
+                                <button onClick={handleGenerate} disabled={isGenerating} className={`px-8 py-3 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg z-10 ${isGenerating ? "bg-indigo-500/20 text-indigo-400 cursor-wait" : "bg-white text-black hover:scale-105"}`}>
+                                    {isGenerating ? <><Wand2 className="w-4 h-4 animate-spin" /> Synthesizing...</> : <><Play className="w-4 h-4 fill-black" /> Generate Audio</>}
+                                </button>
                             </div>
-                        </div>
+                        </>
+                    )}
 
-                        <button
-                            onClick={handleGenerate}
-                            disabled={isGenerating}
-                            className={`px-8 py-3 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg z-10 ${
-                                isGenerating
-                                ? "bg-indigo-500/20 text-indigo-400 cursor-wait"
-                                : "bg-white text-black hover:scale-105 hover:shadow-indigo-500/20"
-                            }`}
-                        >
-                            {isGenerating ? (
-                                <>
-                                    <Wand2 className="w-4 h-4 animate-spin" /> Synthesizing...
-                                </>
+                    {/* 🔴 MODE B: LIVEKIT VOICE ROOM */}
+                    {mode === 'voice' && (
+                        <div className="flex-1 flex flex-col relative">
+                            {lkConnecting ? (
+                                <div className="flex-1 flex items-center justify-center text-slate-500 gap-3 animate-pulse">
+                                    <Activity className="w-5 h-5 animate-spin" /> Connecting to Neural Core...
+                                </div>
+                            ) : lkError ? (
+                                <div className="flex-1 flex items-center justify-center text-rose-500 gap-3">
+                                    <Wifi className="w-5 h-5" /> Connection Failed
+                                </div>
                             ) : (
-                                <>
-                                    <Play className="w-4 h-4 fill-black" /> Generate Audio
-                                </>
+                                /* THE LIVEKIT ROOM WRAPPER */
+                                <LiveKitRoom
+                                    video={false}
+                                    audio={true}
+                                    token={roomToken}
+                                    serverUrl={wsUrl}
+                                    data-lk-theme="default"
+                                    style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+                                >
+                                    <RoomAudioRenderer />
+
+                                    {/* Visualization Area */}
+                                    <div className="flex-1 flex items-center justify-center relative overflow-hidden">
+                                        <div className="absolute inset-0 bg-indigo-500/5 blur-[100px] rounded-full pointer-events-none" />
+
+                                        <div className="relative z-10 w-full max-w-lg h-64 flex flex-col items-center justify-center gap-6">
+                                            <div className="text-xs font-bold text-indigo-400 uppercase tracking-[0.2em] animate-pulse">
+                                                Live Session Active
+                                            </div>
+                                            {/* LiveKit's Built-in Visualizer */}
+                                            <div className="h-32 w-full flex items-center justify-center">
+                                                 <BarVisualizer state="connected" barCount={7} trackRef={undefined} className="h-full w-full !bg-transparent" />
+                                            </div>
+                                            <div className="text-slate-500 text-sm font-mono">
+                                                Speak now. Nexus is listening...
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Bottom Control Bar (Voice) */}
+                                    <div className="h-24 border-t border-white/10 bg-[#080808] flex items-center justify-center z-10">
+                                        <div className="bg-white/5 p-2 px-6 rounded-full border border-white/10 backdrop-blur-md">
+                                            {/* LiveKit Controls */}
+                                            <ControlBar variation="minimal" controls={{ microphone: true, camera: false, screenShare: false, leave: false }} />
+                                        </div>
+                                    </div>
+                                </LiveKitRoom>
                             )}
-                        </button>
-                    </div>
+                        </div>
+                    )}
+
                 </div>
 
                 {/* --- RIGHT: History --- */}
-                <div className="w-72 bg-[#0A0A0A] border-l border-white/10 flex flex-col">
+                <div className="w-72 bg-[#0A0A0A] border-l border-white/10 flex flex-col z-20">
                     <div className="p-4 border-b border-white/10 flex justify-between items-center">
                         <h2 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
                             <History className="w-3 h-3" /> History
@@ -172,13 +226,20 @@ const Studio = () => {
                     animation-iteration-count: infinite;
                     animation-timing-function: ease-in-out;
                 }
+                /* Custom Override for LiveKit Controls to match theme */
+                .lk-control-bar {
+                    background: transparent !important;
+                    border: none !important;
+                }
+                .lk-button {
+                    background-color: rgba(255,255,255,0.1) !important;
+                }
             `}</style>
         </div>
     );
 };
 
-// --- Sub Components ---
-
+// --- Sub Components (Unchanged) ---
 const ActionBtn = ({ icon: Icon }) => (
     <button className="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-colors">
         <Icon className="w-4 h-4" />
