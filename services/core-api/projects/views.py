@@ -3,7 +3,6 @@ from rest_framework import generics, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from livekit import api
-
 from .models import Project
 from .serializers import ProjectSerializer
 from .permissions import IsOwner
@@ -33,7 +32,7 @@ class ProjectDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 # ----------------------
-# 2. New LiveKit Token View
+# 2. New LiveKit Token View (FIXED)
 # ----------------------
 
 class LiveKitTokenView(APIView):
@@ -48,19 +47,24 @@ class LiveKitTokenView(APIView):
         if not LK_API_KEY or not LK_API_SECRET:
             return Response({'error': 'Server configuration error: Missing LiveKit API Keys'}, status=500)
 
-        # preparing user data
-        # using the current user log as id for the room
+        # Preparing user data
         participant_identity = request.user.username
+        participant_name = request.user.username
 
-        # room_name = request.query_params.get('room', 'default-room')
+        # Room name config
         room_name = "nexus-voice-room"
 
-        #Tokken generator
-        grant = api.VideoGrant(room_join=True, room_name=room_name)
-        token = api.AccessToken(LK_API_KEY, LK_API_SECRET, identity=participant_identity)
-        token.add_grant(grant)
+        # Token generator (UPDATED for LiveKit SDK v2+)
+        # We use .with_grants() and api.VideoGrants (plural) instead of the old constructor
+        token = api.AccessToken(LK_API_KEY, LK_API_SECRET) \
+            .with_identity(participant_identity) \
+            .with_name(participant_name) \
+            .with_grants(api.VideoGrants(
+            room_join=True,
+            room=room_name,
+        ))
 
-        # sending respond
+        # Sending response
         return Response({
             'token': token.to_jwt(),
             'url': LK_URL,
