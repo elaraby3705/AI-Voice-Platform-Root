@@ -1,21 +1,47 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Sidebar from '../components/Sidebar';
-import { useLiveKitAuth } from '../hooks/useLiveKitAuth'; // Import the Hook
-// Import LiveKit Components
-import { LiveKitRoom, RoomAudioRenderer, ControlBar, BarVisualizer, useConnectionState, ConnectionState } from '@livekit/components-react';
+import { useLiveKitAuth } from '../hooks/useLiveKitAuth';
+
+// --- 1. Import LiveKit & Visualizer Requirements ---
+import {
+    LiveKitRoom,
+    RoomAudioRenderer,
+    ControlBar,
+    BarVisualizer,
+    useTracks
+} from '@livekit/components-react';
+import { Track } from 'livekit-client'; // Required to identify audio source
 import '@livekit/components-styles';
 
 import {
-    Play, Download, Sparkles, Sliders, History,
-    Save, RotateCcw, Volume2, Mic2, FileAudio, Wand2,
+    Play, Download, Sliders, History,
+    Save, RotateCcw, Mic2, FileAudio, Wand2,
     MessageSquare, Activity, Wifi
 } from 'lucide-react';
 
+// --- 2. Helper Component for Visualization (The Fix) ---
+// This component finds the AI's audio track so the bars actually move
+const AgentVisualizer = () => {
+    // Get all microphone tracks in the room
+    const tracks = useTracks([Track.Source.Microphone]);
+
+    // Find the track that does NOT belong to "me" (i.e., the AI Agent)
+    const agentTrack = tracks.find(t => t.participant.identity !== "me");
+
+    return (
+        <BarVisualizer
+            state="connected"
+            barCount={7}
+            trackRef={agentTrack} // Bind the visualizer to the Agent's voice
+            className="h-full w-full !bg-transparent"
+        />
+    );
+};
+
 const Studio = () => {
-    // State for Mode Switching (Text Generation vs Live Voice)
     const [mode, setMode] = useState('text'); // 'text' or 'voice'
 
-    // --- Existing Text States ---
+    // --- Text States ---
     const [text, setText] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [stability, setStability] = useState(50);
@@ -72,7 +98,6 @@ const Studio = () => {
                         <h2 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                             <Sliders className="w-3 h-3" /> Tuning
                         </h2>
-                        {/* Tuning only makes sense for Text Mode usually, but keeping it visible */}
                         <div className="space-y-6">
                             <RangeSlider label="Stability" value={stability} setValue={setStability} />
                             <RangeSlider label="Clarity Boost" value={clarity} setValue={setClarity} />
@@ -122,7 +147,6 @@ const Studio = () => {
                                 </div>
                             </div>
 
-                            {/* Bottom Control Bar (Text) */}
                             <div className="h-24 border-t border-white/10 bg-[#080808] px-8 flex items-center justify-between relative overflow-hidden">
                                 {isGenerating && (
                                     <div className="absolute inset-0 flex items-center justify-center gap-1 opacity-20 pointer-events-none">
@@ -175,10 +199,15 @@ const Studio = () => {
                                             <div className="text-xs font-bold text-indigo-400 uppercase tracking-[0.2em] animate-pulse">
                                                 Live Session Active
                                             </div>
-                                            {/* LiveKit's Built-in Visualizer */}
+
+                                            {/* --- 3. Fixed Visualizer Container --- */}
+                                            {/* Wraps the visualizer in a fixed size div to solve 'width(-1)' warning */}
                                             <div className="h-32 w-full flex items-center justify-center">
-                                                 <BarVisualizer state="connected" barCount={7} trackRef={undefined} className="h-full w-full !bg-transparent" />
+                                                 <div style={{ width: '100%', height: '100%' }}>
+                                                     <AgentVisualizer />
+                                                 </div>
                                             </div>
+
                                             <div className="text-slate-500 text-sm font-mono">
                                                 Speak now. Nexus is listening...
                                             </div>
@@ -188,7 +217,6 @@ const Studio = () => {
                                     {/* Bottom Control Bar (Voice) */}
                                     <div className="h-24 border-t border-white/10 bg-[#080808] flex items-center justify-center z-10">
                                         <div className="bg-white/5 p-2 px-6 rounded-full border border-white/10 backdrop-blur-md">
-                                            {/* LiveKit Controls */}
                                             <ControlBar variation="minimal" controls={{ microphone: true, camera: false, screenShare: false, leave: false }} />
                                         </div>
                                     </div>
@@ -196,7 +224,6 @@ const Studio = () => {
                             )}
                         </div>
                     )}
-
                 </div>
 
                 {/* --- RIGHT: History --- */}
@@ -226,7 +253,6 @@ const Studio = () => {
                     animation-iteration-count: infinite;
                     animation-timing-function: ease-in-out;
                 }
-                /* Custom Override for LiveKit Controls to match theme */
                 .lk-control-bar {
                     background: transparent !important;
                     border: none !important;
@@ -239,7 +265,7 @@ const Studio = () => {
     );
 };
 
-// --- Sub Components (Unchanged) ---
+// --- Sub Components ---
 const ActionBtn = ({ icon: Icon }) => (
     <button className="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-colors">
         <Icon className="w-4 h-4" />
