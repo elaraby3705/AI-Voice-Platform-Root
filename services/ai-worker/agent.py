@@ -2,41 +2,50 @@ import logging
 import asyncio
 from dotenv import load_dotenv
 
-from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, cli, llm
+from livekit.agents import (
+    AutoSubscribe,
+    JobContext,
+    JobRequest,
+    WorkerOptions,
+    cli,
+    llm
+)
 from livekit.agents.pipeline import VoicePipelineAgent
 from livekit.plugins import silero, deepgram, groq
 
 load_dotenv()
 
+# 1. Enable DEBUG logs to see hidden errors
 logger = logging.getLogger("ai-agent")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
+
 
 async def entrypoint(ctx: JobContext):
     """
-    Entrypoint for the Project Nexus AI Voice Agent.
-    Stack: LiveKit (WebRTC) + Deepgram (STT/TTS) + Groq (LLM).
+    Main logic: executed when the Agent successfully joins a room.
     """
-    logger.info(f"🔗 Connecting to room: {ctx.room.name}")
+    logger.info(f"✅ CONNECTED to room: {ctx.room.name}")
+    logger.info(f"🔗 Room ID: {ctx.room.sid}")
 
     # Connect to LiveKit
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
 
-    # Wait for participant
+    # Wait for the user to speak/join
+    logger.info("⏳ Waiting for user...")
     participant = await ctx.wait_for_participant()
-    logger.info(f"👤 User joined: {participant.identity}")
+    logger.info(f"👤 User found: {participant.identity}")
 
     # Define the Agent Pipeline
     agent = VoicePipelineAgent(
-        vad=silero.VAD.load(),                  # Voice Activity Detection
-        stt=deepgram.STT(),                     # Ears: Deepgram Nova-2
-        llm=groq.LLM(model="llama-3.3-70b-versatile"), # Brain: Groq LPU (Llama 3.3)
-        tts=deepgram.TTS(),                     # Mouth: Deepgram Aura
+        vad=silero.VAD.load(),
+        stt=deepgram.STT(),
+        llm=groq.LLM(model="llama-3.3-70b-versatile"),
+        tts=deepgram.TTS(),
         chat_ctx=llm.ChatContext().append(
             role="system",
             text=(
-                "You are a helpful voice assistant for Project Nexus. "
+                "You are Nexus, a smart AI assistant. "
                 "You are concise, friendly, and professional. "
-                "Keep your responses short (under 2 sentences) unless asked to elaborate."
             ),
         ),
     )
@@ -44,10 +53,22 @@ async def entrypoint(ctx: JobContext):
     # Start the Agent
     agent.start(ctx.room, participant)
 
-    logger.info("🤖 Agent starting... (Stack: Deepgram + Groq Llama 3.3)")
-    await agent.say("Hello! I am fully operational on the new zero-latency stack. How can I help?", allow_interruptions=True)
+    logger.info("🎙️ Agent is listening...")
+    await agent.say("System online. I am listening.", allow_interruptions=True)
+
+
+# 2. THE FIX: Explicitly accept job requests without arguments
+async def request_fnc(req: JobRequest) -> None:
+    logger.info(f"📩 JOB REQUEST RECEIVED for room: {req.room.name}")
+
+    # FIXED: Removed 'entrypoint' argument.
+    # accept() should be called empty in this version.
+    await req.accept()
 
 
 if __name__ == "__main__":
-    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
-    
+    # 3. Register the request_fnc
+    cli.run_app(WorkerOptions(
+        entrypoint_fnc=entrypoint,
+        request_fnc=request_fnc,  # <--- This ensures we capture the dispatch
+    ))

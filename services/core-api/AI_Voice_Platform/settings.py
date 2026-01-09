@@ -180,6 +180,7 @@ CORS_ALLOWED_ORIGINS = [
 # -----------------------------------------------------------------------------
 # 9. LIVEKIT API (AI Voice Service)
 # -----------------------------------------------------------------------------
-LIVEKIT_API_URL = os.environ.get("LIVEKIT_API_URL")
+# FIX: Renamed variable to match .env file (LIVEKIT_URL)
+LIVEKIT_URL = os.environ.get("LIVEKIT_URL")
 LIVEKIT_API_KEY = os.environ.get("LIVEKIT_API_KEY")
 LIVEKIT_API_SECRET = os.environ.get("LIVEKIT_API_SECRET")

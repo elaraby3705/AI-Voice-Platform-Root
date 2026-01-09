@@ -32,14 +32,14 @@ class ProjectDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 # ----------------------
-# 2. New LiveKit Token View (FIXED)
+# 2. New LiveKit Token View (FIXED & ROBUST)
 # ----------------------
 
 class LiveKitTokenView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
-        # (Environment Variables)
+        # 1. Environment Variables
         LK_API_KEY = os.getenv('LIVEKIT_API_KEY')
         LK_API_SECRET = os.getenv('LIVEKIT_API_SECRET')
         LK_URL = os.getenv('LIVEKIT_URL')
@@ -47,26 +47,38 @@ class LiveKitTokenView(APIView):
         if not LK_API_KEY or not LK_API_SECRET:
             return Response({'error': 'Server configuration error: Missing LiveKit API Keys'}, status=500)
 
-        # Preparing user data
-        participant_identity = request.user.username
-        participant_name = request.user.username
+        # 2. Robust Identity Selection (FIX)
+        # Use email as priority, then username, then ID.
+        # This prevents the "ValueError: identity must be set" error if one field is empty.
+        participant_identity = request.user.email or request.user.username or str(request.user.id)
 
-        # Room name config
+        # Extra safety: If identity is still empty, force a string with the ID
+        if not participant_identity:
+            participant_identity = f"user_{request.user.id}"
+
+        participant_name = participant_identity
         room_name = "nexus-voice-room"
 
-        # Token generator (UPDATED for LiveKit SDK v2+)
-        # We use .with_grants() and api.VideoGrants (plural) instead of the old constructor
-        token = api.AccessToken(LK_API_KEY, LK_API_SECRET) \
-            .with_identity(participant_identity) \
-            .with_name(participant_name) \
-            .with_grants(api.VideoGrants(
-            room_join=True,
-            room=room_name,
-        ))
+        # 3. Token Generation (Updated for SDK v2+)
+        try:
+            token = api.AccessToken(LK_API_KEY, LK_API_SECRET) \
+                .with_identity(participant_identity) \
+                .with_name(participant_name) \
+                .with_grants(api.VideoGrants(
+                room_join=True,
+                room=room_name,
+            ))
 
-        # Sending response
+            jwt_token = token.to_jwt()
+
+        except Exception as e:
+            # Log the error to the console for debugging purposes
+            print(f"Error generating LiveKit token: {e}")
+            return Response({'error': f'Failed to generate token: {str(e)}'}, status=500)
+
+        # 4. Sending Response
         return Response({
-            'token': token.to_jwt(),
+            'token': jwt_token,
             'url': LK_URL,
             'identity': participant_identity
         })
