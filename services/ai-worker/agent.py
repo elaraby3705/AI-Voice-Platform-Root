@@ -39,7 +39,7 @@ async def entrypoint(ctx: JobContext):
     agent = VoicePipelineAgent(
         vad=silero.VAD.load(),
         stt=deepgram.STT(),
-        llm=groq.LLM(model="llama-3.3-70b-versatile"),
+        llm=groq.LLM(model="llama-3.1-8b-instant"),
         tts=deepgram.TTS(),
         chat_ctx=llm.ChatContext().append(
             role="system",
