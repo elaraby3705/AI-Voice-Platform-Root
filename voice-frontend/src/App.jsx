@@ -22,8 +22,9 @@ import Settings from './pages/Settings';
 import Projects from './pages/Projects';
 import VoiceSessions from './pages/VoiceSessions';
 import Support from './pages/Support';
+import Profile from './pages/Profile'; // Kept this single import
 
-// 🧠 Smart Layout Wrapper (Updated Logic)
+// 🧠 Smart Layout Wrapper
 const LayoutWrapper = ({ children }) => {
   const location = useLocation();
 
@@ -33,13 +34,10 @@ const LayoutWrapper = ({ children }) => {
     '/billing', '/voicesessions', '/developers', '/support'
   ];
 
-  // 2. Full Screen Pages (No Navbar, No Footer) 👈 THIS IS NEW
-  // These pages handle their own layout completely
+  // 2. Full Screen Pages (No Navbar, No Footer)
   const fullScreenPaths = ['/login', '/register', '/notfound'];
 
   const isAppPage = appPaths.some(path => location.pathname.startsWith(path));
-
-  // Check if current path is one of the full screen paths
   const isFullScreen = fullScreenPaths.some(path => location.pathname.startsWith(path));
 
   // CASE 1: Dashboard App
@@ -49,10 +47,10 @@ const LayoutWrapper = ({ children }) => {
 
   // CASE 2: Auth or 404 (Full Screen)
   if (isFullScreen) {
-    return <>{children}</>; // Renders without MainLayout
+    return <>{children}</>;
   }
 
-  // CASE 3: Public Website (Landing, Contact) -> Has Navbar & Footer
+  // CASE 3: Public Website (Landing, Contact)
   return <MainLayout>{children}</MainLayout>;
 };
 
@@ -83,9 +81,11 @@ const AppRoutes = () => {
           <Route path="/developers" element={<Developers />} />
           <Route path="/support" element={<Support />} />
 
+          {/* ✅ Path corrected for consistency */}
+          <Route path="/dashboard/profile" element={<Profile />} />
+
           {/* --- 404 Handling --- */}
           <Route path="/notfound" element={<NotFound />} />
-          {/* Catch-all redirects to /notfound */}
           <Route path="*" element={<Navigate to="/notfound" replace />} />
         </Routes>
       </Suspense>
