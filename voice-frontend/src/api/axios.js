@@ -1,8 +1,8 @@
-// src/api/axios.js
 import axios from 'axios';
 
-// 1. Define the Base URL for your Django Backend
-const BASE_URL = 'http://192.168.100.30:8000/api/v1/';// this is my Vbox VM Ip**
+// 1. Dynamic Base URL
+// Using window.location.hostname ensures it works on Localhost AND over Network (LAN)
+const BASE_URL = `http://${window.location.hostname}:8000/api/v1`;
 
 const api = axios.create({
     baseURL: BASE_URL,
@@ -10,19 +10,13 @@ const api = axios.create({
         'Content-Type': 'application/json',
     },
 });
-api.interceptors.request.use((config) => {
-    // Check if you saved it as 'token' or 'access_token' in Login.jsx
-    const token = localStorage.getItem('token');
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-});
+
 // 2. Request Interceptor
-// Automatically adds the 'Authorization: Bearer <token>' header if a token exists.
+// Automatically adds the 'Authorization: Bearer <token>' header
 api.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('token');
+        // CRITICAL FIX: Changed 'token' to 'access_token' to match AuthContext logic
+        const token = localStorage.getItem('access_token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -33,16 +27,15 @@ api.interceptors.request.use(
     }
 );
 
-// 3. Response Interceptor (Optional but recommended)
-// Handles global errors, like 401 Unauthorized (token expired)
+// 3. Response Interceptor
+// Handles global errors like 401 Unauthorized
 api.interceptors.response.use(
     (response) => response,
     (error) => {
-        // You can add logic here to redirect to login if 401 occurs
         if (error.response && error.response.status === 401) {
-            console.error("Unauthorized! Token might be invalid.");
-            // Optional: localStorage.removeItem('token');
-            // Optional: window.location.href = '/login';
+            console.warn("Unauthorized access detected. Session might be expired.");
+            // Note: We avoid forcing a redirect here to prevent infinite loops.
+            // We let the UI components or AuthContext handle the user navigation.
         }
         return Promise.reject(error);
     }

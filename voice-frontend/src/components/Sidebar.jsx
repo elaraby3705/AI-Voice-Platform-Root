@@ -10,7 +10,7 @@ const Sidebar = () => {
     const { logout, user } = useAuth();
     const location = useLocation();
 
-    // Logic to extract name from email (since backend sends email only)
+    // Logic to extract name from email
     const displayName = user?.email?.split('@')[0] || 'Operator';
     const initial = displayName.charAt(0).toUpperCase();
 
@@ -101,24 +101,33 @@ const Sidebar = () => {
                     </div>
                 </div>
 
-                {/* User Profile */}
+                {/* ✨ The Magic: Clickable Profile Section ✨ */}
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center text-xs font-bold text-slate-300 ring-2 ring-black">
+
+                    {/* Wrapped in Link with Hover Effects */}
+                    <Link
+                        to="/dashboard/profile"
+                        className="flex items-center gap-2.5 group cursor-pointer transition-opacity hover:opacity-100"
+                    >
+                        <div className="w-8 h-8 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center text-xs font-bold text-slate-300 ring-2 ring-black group-hover:border-indigo-500 group-hover:text-white transition-all">
                             {initial}
                         </div>
                         <div className="overflow-hidden max-w-[100px]">
-                            {/* FIXED LINE BELOW */}
-                            <div className="text-xs font-bold text-white truncate" title={user?.email}>
+                            <div className="text-xs font-bold text-white truncate group-hover:text-indigo-400 transition-colors" title={user?.email}>
                                 {displayName}
                             </div>
                             <div className="text-[9px] text-emerald-500 truncate flex items-center gap-1 font-medium">
                                 <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span> Online
                             </div>
                         </div>
-                    </div>
-                    {/* Logout Button */}
-                    <button onClick={logout} className="text-slate-600 hover:text-rose-400 transition-colors p-2 hover:bg-white/5 rounded-lg" title="Sign Out">
+                    </Link>
+
+                    {/* Logout Button (Kept Separate) */}
+                    <button
+                        onClick={logout}
+                        className="text-slate-600 hover:text-rose-400 transition-colors p-2 hover:bg-white/5 rounded-lg ml-1"
+                        title="Sign Out"
+                    >
                         <LogOut className="w-4 h-4" />
                     </button>
                 </div>
