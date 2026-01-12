@@ -2,69 +2,133 @@ import { useState, useEffect, useRef } from 'react';
 import Sidebar from '../components/Sidebar';
 import { useLiveKitAuth } from '../hooks/useLiveKitAuth';
 
-// --- 1. LiveKit Imports ---
+// --- LiveKit Imports ---
 import {
     LiveKitRoom,
     RoomAudioRenderer,
     ControlBar,
     BarVisualizer,
     useTracks,
+    useRoomContext,
 } from '@livekit/components-react';
-import { Track } from 'livekit-client';
+import { Track, RoomEvent } from 'livekit-client';
 import '@livekit/components-styles';
 
+// --- Icons ---
 import {
     Play, Save, RotateCcw, Mic2, FileAudio, Wand2,
-    MessageSquare, Activity, Wifi, Bot, User, Mic, MicOff,
-    Sliders, History, Sparkles
+    MessageSquare, Activity, Wifi, Bot, User,
+    Sliders, History, Sparkles, Download
 } from 'lucide-react';
 
-// --- 2. Enhanced Agent Visualizer ---
+// ==========================================
+// 1. HELPER: The "Ears" (Agent Visualizer)
+// ==========================================
+// This component listens specifically to the Remote Agent's track
 const AgentVisualizer = () => {
-    // Get all microphone tracks
     const tracks = useTracks([Track.Source.Microphone]);
-    // robust check: Find track that is NOT the local user
+    // Filter to find the track that is NOT me (the local user)
     const agentTrack = tracks.find(t => !t.participant.isLocal);
 
     return (
         <BarVisualizer
             state="connected"
-            barCount={5}
+            barCount={7}
             trackRef={agentTrack}
             className="h-full w-full !bg-transparent"
-            options={{ minHeight: 20, maxHeight: 80 }}
+            options={{ minHeight: 20, maxHeight: 60 }}
         />
     );
 };
 
-const Studio = () => {
-    const [mode, setMode] = useState('text'); // 'text' or 'voice'
+// ==========================================
+// 2. HELPER: The "Brain" (Live Transcript)
+// ==========================================
+// Handles real-time data packets from the AI Agent
+const LiveTranscript = ({ initialMsg }) => {
+    const room = useRoomContext();
+    const [messages, setMessages] = useState([
+        { sender: 'ai', text: initialMsg }
+    ]);
+    const bottomRef = useRef(null);
 
-    // --- State: Text Mode ---
+    useEffect(() => {
+        if (!room) return;
+
+        const handleData = (payload, participant) => {
+            const str = new TextDecoder().decode(payload);
+            try {
+                // Try to parse JSON (e.g. { "type": "transcript", "text": "Hello" })
+                const data = JSON.parse(str);
+                if (data.type === 'transcript' || data.message) {
+                    addMessage('ai', data.message || data.text);
+                }
+            } catch (e) {
+                // Fallback: It's just a raw string
+                addMessage('ai', str);
+            }
+        };
+
+        room.on(RoomEvent.DataReceived, handleData);
+        return () => {
+            room.off(RoomEvent.DataReceived, handleData);
+        };
+    }, [room]);
+
+    const addMessage = (sender, text) => {
+        setMessages(prev => [...prev, { sender, text }]);
+    };
+
+    // Auto-scroll to bottom
+    useEffect(() => {
+        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
+
+    return (
+        <div className="flex-1 overflow-y-auto p-8 space-y-6 bg-gradient-to-b from-[#050505] to-[#080808] scrollbar-thin scrollbar-thumb-white/10">
+            {messages.map((msg, idx) => (
+                <div key={idx} className={`flex gap-4 ${msg.sender === 'user' ? 'flex-row-reverse' : ''} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
+                    {/* Avatar */}
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 border ${
+                        msg.sender === 'ai'
+                        ? 'bg-indigo-600 border-indigo-500 shadow-lg shadow-indigo-900/50'
+                        : 'bg-slate-800 border-white/10'
+                    }`}>
+                        {msg.sender === 'ai' ? <Bot className="w-4 h-4 text-white" /> : <User className="w-4 h-4 text-white" />}
+                    </div>
+                    {/* Bubble */}
+                    <div className={`max-w-[75%] p-4 rounded-2xl text-sm leading-relaxed ${
+                        msg.sender === 'ai'
+                        ? 'bg-white/5 border border-white/10 text-slate-200 rounded-tl-none'
+                        : 'bg-indigo-600 text-white rounded-tr-none shadow-lg'
+                    }`}>
+                        {msg.text}
+                    </div>
+                </div>
+            ))}
+            <div ref={bottomRef} />
+        </div>
+    );
+};
+
+// ==========================================
+// 3. MAIN COMPONENT: Studio
+// ==========================================
+const Studio = () => {
+    // UI States
+    const [mode, setMode] = useState('text');
     const [text, setText] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
 
-    // --- State: Voice & Config ---
+    // Voice Config States
     const [stability, setStability] = useState(50);
     const [clarity, setClarity] = useState(75);
     const [selectedVoice, setSelectedVoice] = useState('Sarah');
 
-    // --- State: Transcript (The 80% View) ---
-    const [transcript, setTranscript] = useState([
-        { sender: 'ai', text: "Nexus systems online. Select a mode to begin." }
-    ]);
-    const chatEndRef = useRef(null);
-
-    // --- LiveKit Hooks ---
-    // Note: To make voice selection work in backend, you would pass selectedVoice here
+    // LiveKit Hook
     const { roomToken, wsUrl, error: lkError, isConnecting: lkConnecting } = useLiveKitAuth();
 
-    // Auto-scroll to bottom of chat
-    useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [transcript, mode]);
-
-    // Mock Text Gen
+    // Text Mode Simulation
     const handleGenerate = () => {
         setIsGenerating(true);
         setTimeout(() => setIsGenerating(false), 2500);
@@ -78,12 +142,11 @@ const Studio = () => {
     return (
         <div className="flex min-h-screen bg-[#050505] selection:bg-indigo-500/30 font-sans text-white">
             <Sidebar />
+
             <main className="ml-64 flex-1 h-screen flex overflow-hidden">
 
-                {/* --- 1. LEFT PANEL: Config (Fixed Width) --- */}
+                {/* --- LEFT PANEL: Configuration --- */}
                 <div className="w-80 bg-[#080808] border-r border-white/10 p-6 flex flex-col gap-6 overflow-y-auto z-20">
-
-                    {/* Voice Selector */}
                     <div>
                         <h2 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Neural Model</h2>
                         <div className="space-y-2">
@@ -97,9 +160,7 @@ const Studio = () => {
                                         : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'
                                     }`}
                                 >
-                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-colors ${
-                                        selectedVoice === voice ? 'bg-indigo-500 text-white' : 'bg-slate-800 text-slate-400'
-                                    }`}>
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-colors ${selectedVoice === voice ? 'bg-indigo-500 text-white' : 'bg-slate-800 text-slate-400'}`}>
                                         {voice[0]}
                                     </div>
                                     <div className="text-left">
@@ -112,7 +173,6 @@ const Studio = () => {
                         </div>
                     </div>
 
-                    {/* Tuning Sliders */}
                     <div className="p-5 rounded-2xl bg-white/5 border border-white/5">
                         <h2 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                             <Sliders className="w-3 h-3" /> Fine Tuning
@@ -124,10 +184,10 @@ const Studio = () => {
                     </div>
                 </div>
 
-                {/* --- 2. CENTER STAGE: The Work Area --- */}
+                {/* --- CENTER STAGE: Workspace --- */}
                 <div className="flex-1 flex flex-col min-w-0 bg-[#050505] relative">
 
-                    {/* Header Toolbar */}
+                    {/* Toolbar */}
                     <div className="h-16 border-b border-white/10 flex items-center justify-between px-8 bg-[#050505]/80 backdrop-blur-md z-30">
                         <div className="flex bg-white/5 rounded-lg p-1 border border-white/10">
                             <TabButton active={mode === 'text'} onClick={() => setMode('text')} icon={MessageSquare} label="Text to Speech" />
@@ -139,7 +199,7 @@ const Studio = () => {
                         </div>
                     </div>
 
-                    {/* 🅰️ MODE: TEXT EDITOR */}
+                    {/* --- MODE A: Text Editor --- */}
                     {mode === 'text' && (
                         <>
                             <div className="flex-1 p-8 relative group">
@@ -154,7 +214,6 @@ const Studio = () => {
                                     <Chip label="+ Make Cheerful" onClick={() => enhancePrompt('happy')} />
                                 </div>
                             </div>
-
                             <div className="h-24 border-t border-white/10 bg-[#080808] px-8 flex items-center justify-between relative overflow-hidden">
                                 {isGenerating && <GeneratingWave />}
                                 <div className="flex items-center gap-6 z-10">
@@ -170,7 +229,7 @@ const Studio = () => {
                         </>
                     )}
 
-                    {/* 🅱️ MODE: LIVE VOICE (80/20 SPLIT) */}
+                    {/* --- MODE B: Live Voice (The 80/20 Split) --- */}
                     {mode === 'voice' && (
                         <div className="flex-1 flex flex-col relative">
                             {lkConnecting ? (
@@ -196,33 +255,13 @@ const Studio = () => {
                                 >
                                     <RoomAudioRenderer />
 
-                                    {/* --- 80% AREA: CHAT TRANSCRIPT --- */}
-                                    <div className="flex-1 overflow-y-auto p-8 space-y-6 bg-gradient-to-b from-[#050505] to-[#080808]">
-                                        {transcript.map((msg, idx) => (
-                                            <div key={idx} className={`flex gap-4 ${msg.sender === 'user' ? 'flex-row-reverse' : ''} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
-                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 border ${
-                                                    msg.sender === 'ai'
-                                                    ? 'bg-indigo-600 border-indigo-500 shadow-lg shadow-indigo-900/50'
-                                                    : 'bg-slate-800 border-white/10'
-                                                }`}>
-                                                    {msg.sender === 'ai' ? <Bot className="w-4 h-4 text-white" /> : <User className="w-4 h-4 text-white" />}
-                                                </div>
-                                                <div className={`max-w-[70%] p-4 rounded-2xl text-sm leading-relaxed ${
-                                                    msg.sender === 'ai'
-                                                    ? 'bg-white/5 border border-white/10 text-slate-200 rounded-tl-none'
-                                                    : 'bg-indigo-600 text-white rounded-tr-none shadow-lg'
-                                                }`}>
-                                                    {msg.text}
-                                                </div>
-                                            </div>
-                                        ))}
-                                        <div ref={chatEndRef} />
-                                    </div>
+                                    {/* 80% TOP: Transcript */}
+                                    <LiveTranscript initialMsg={`Nexus systems online. ${selectedVoice} is listening...`} />
 
-                                    {/* --- 20% AREA: CONTROL DECK --- */}
+                                    {/* 20% BOTTOM: Control Deck */}
                                     <div className="h-48 border-t border-white/10 bg-[#060606] relative flex flex-col items-center justify-center p-6 z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
 
-                                        {/* Visualizer Floating in Background */}
+                                        {/* Background Visualizer */}
                                         <div className="absolute inset-0 flex items-center justify-center opacity-30 pointer-events-none">
                                             <div className="w-1/2 h-24">
                                                 <AgentVisualizer />
@@ -232,11 +271,10 @@ const Studio = () => {
                                         {/* Controls */}
                                         <div className="relative z-10 flex flex-col items-center gap-4">
                                             <div className="text-[10px] font-bold text-indigo-400 uppercase tracking-[0.2em] animate-pulse">
-                                                Listening • {selectedVoice} Active
+                                                Live Session • {selectedVoice} Active
                                             </div>
 
                                             <div className="bg-white/5 p-2 px-8 rounded-full border border-white/10 backdrop-blur-md hover:bg-white/10 transition-colors shadow-2xl">
-                                                {/* LiveKit Built-in Control Bar handles Mute/Unmute */}
                                                 <ControlBar
                                                     variation="minimal"
                                                     controls={{ microphone: true, camera: false, screenShare: false, leave: false }}
@@ -244,14 +282,13 @@ const Studio = () => {
                                             </div>
                                         </div>
                                     </div>
-
                                 </LiveKitRoom>
                             )}
                         </div>
                     )}
                 </div>
 
-                {/* --- 3. RIGHT PANEL: History --- */}
+                {/* --- RIGHT PANEL: History --- */}
                 <div className="w-72 bg-[#0A0A0A] border-l border-white/10 flex flex-col z-20">
                     <div className="p-4 border-b border-white/10 flex justify-between items-center">
                         <h2 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
@@ -260,51 +297,39 @@ const Studio = () => {
                     </div>
                     <div className="flex-1 overflow-y-auto p-3 space-y-3">
                         <HistoryItem text="Welcome to the future of AI..." voice="Sarah" time="2m ago" />
-                        <HistoryItem text="Diagnostic complete. Systems green." voice="Marcus" time="1h ago" />
+                        <HistoryItem text="Diagnostic complete." voice="Marcus" time="1h ago" />
                     </div>
                 </div>
 
             </main>
 
-            {/* Global Styles for Animations & Overrides */}
+            {/* Global Overrides */}
             <style>{`
                 .lk-control-bar { background: transparent !important; border: none !important; padding: 0 !important; }
                 .lk-button { background-color: rgba(255,255,255,0.05) !important; height: 48px !important; width: 48px !important; border-radius: 50% !important; }
                 .lk-button:hover { background-color: rgba(99,102,241,0.5) !important; }
                 .lk-button-group { gap: 1rem !important; }
-                .lk-device-menu { display: none !important; } /* Hides extra menus for cleanliness */
+                .lk-device-menu { display: none !important; }
             `}</style>
         </div>
     );
 };
 
-// --- Helper Components (Clean Code) ---
-
+// --- Sub-Components ---
 const TabButton = ({ active, onClick, icon: Icon, label }) => (
-    <button
-        onClick={onClick}
-        className={`px-4 py-1.5 rounded-md text-xs font-bold flex items-center gap-2 transition-all ${
-            active ? 'bg-white text-black shadow-lg' : 'text-slate-400 hover:text-white'
-        }`}
-    >
+    <button onClick={onClick} className={`px-4 py-1.5 rounded-md text-xs font-bold flex items-center gap-2 transition-all ${active ? 'bg-white text-black shadow-lg' : 'text-slate-400 hover:text-white'}`}>
         <Icon className="w-3 h-3" /> {label}
     </button>
 );
-
 const RangeSlider = ({ label, value, setValue, color }) => (
     <div>
         <div className="flex justify-between mb-2">
             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{label}</span>
             <span className={`text-xs text-${color}-400 font-mono font-bold`}>{value}%</span>
         </div>
-        <input
-            type="range" min="0" max="100" value={value}
-            onChange={(e) => setValue(e.target.value)}
-            className={`w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-${color}-500 hover:accent-${color}-400`}
-        />
+        <input type="range" min="0" max="100" value={value} onChange={(e) => setValue(e.target.value)} className={`w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-${color}-500 hover:accent-${color}-400`} />
     </div>
 );
-
 const GeneratingWave = () => (
     <div className="absolute inset-0 flex items-center justify-center gap-1 opacity-20 pointer-events-none">
         {[...Array(40)].map((_, i) => (
@@ -312,32 +337,24 @@ const GeneratingWave = () => (
         ))}
     </div>
 );
-
 const HistoryItem = ({ text, voice, time }) => (
     <div className="p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-transparent hover:border-white/10 cursor-pointer group transition-all">
         <div className="flex justify-between items-start mb-2">
-            <div className="text-[10px] font-bold text-white flex items-center gap-1.5 bg-black/20 px-1.5 py-0.5 rounded">
-                <FileAudio className="w-3 h-3 text-indigo-400" /> {voice}
-            </div>
+            <div className="text-[10px] font-bold text-white flex items-center gap-1.5 bg-black/20 px-1.5 py-0.5 rounded"><FileAudio className="w-3 h-3 text-indigo-400" /> {voice}</div>
             <div className="text-[9px] text-slate-500 font-mono">{time}</div>
         </div>
         <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed mb-3 font-medium">"{text}"</p>
         <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
             <button className="flex-1 py-1.5 bg-indigo-500 text-white rounded-lg text-[10px] font-bold hover:bg-indigo-400">Play</button>
+            <button className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg"><Download className="w-3 h-3" /></button>
         </div>
     </div>
 );
-
 const ActionBtn = ({ icon: Icon }) => (
-    <button className="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-colors">
-        <Icon className="w-4 h-4" />
-    </button>
+    <button className="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-colors"><Icon className="w-4 h-4" /></button>
 );
-
 const Chip = ({ label, onClick }) => (
-    <button onClick={onClick} className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-slate-300 hover:bg-white/10 hover:text-white hover:border-white/20 transition-all backdrop-blur-md">
-        {label}
-    </button>
+    <button onClick={onClick} className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-slate-300 hover:bg-white/10 hover:text-white hover:border-white/20 transition-all backdrop-blur-md">{label}</button>
 );
 
 export default Studio;
