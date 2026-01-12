@@ -1,4 +1,5 @@
 import os
+import json
 from rest_framework import generics, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -47,38 +48,48 @@ class LiveKitTokenView(APIView):
         if not LK_API_KEY or not LK_API_SECRET:
             return Response({'error': 'Server configuration error: Missing LiveKit API Keys'}, status=500)
 
-        # 2. Robust Identity Selection (FIX)
-        # Use email as priority, then username, then ID.
-        # This prevents the "ValueError: identity must be set" error if one field is empty.
-        participant_identity = request.user.email or request.user.username or str(request.user.id)
+        # 2. capture User preference (the missing link)
+        # we grab the voice choice sent from React (e.g., voice= Marcus)
+        target_voice = request.query_params.get('voice','sarah')
+        target_project= request.query_params.get('project', 'default')
 
-        # Extra safety: If identity is still empty, force a string with the ID
+
+        #3. Robust Identity Selection
+        participant_identity = request.user.email or request.user.username or str(request.user.id)
         if not participant_identity:
             participant_identity = f"user_{request.user.id}"
 
-        participant_name = participant_identity
+        participant_name = request.user.username or "Commander"
         room_name = "nexus-voice-room"
 
-        # 3. Token Generation (Updated for SDK v2+)
+        #4. Create Metadata Package (the " Suitcase")
+        # This Json object travels inside the token to the python Agent
+        user_metadata= json.dumps({
+            "user_id": str(request.user.id),
+            "username": participant_name,
+            "voice_id": target_voice, #>>> Critical for voice selection .
+            "project_id": target_project
+        })
+
+        #5. Token Generation with Metadata.
         try:
             token = api.AccessToken(LK_API_KEY, LK_API_SECRET) \
                 .with_identity(participant_identity) \
                 .with_name(participant_name) \
+                .with_metadata(user_metadata) \
                 .with_grants(api.VideoGrants(
                 room_join=True,
-                room=room_name,
+                room="nexus-voice-room",  # You can make this dynamic later if needed
             ))
-
             jwt_token = token.to_jwt()
-
         except Exception as e:
-            # Log the error to the console for debugging purposes
-            print(f"Error generating LiveKit token: {e}")
-            return Response({'error': f'Failed to generate token: {str(e)}'}, status=500)
+            print(f"Error generating LiveKit token : {e}")
+            return Response({'error': f'Failed to generate token: {str(e)} '}, status = 500)
 
-        # 4. Sending Response
+        # 6. Sending Response
         return Response({
             'token': jwt_token,
             'url': LK_URL,
-            'identity': participant_identity
+            'identity': participant_identity,
+            'metadata_sent':target_voice # just for debugging confirmation
         })
