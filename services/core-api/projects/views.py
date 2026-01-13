@@ -60,7 +60,7 @@ class LiveKitTokenView(APIView):
             participant_identity = f"user_{request.user.id}"
 
         participant_name = request.user.username or "Commander"
-        room_name = "nexus-voice-room"
+        room_name = f"nexus-{request.user.id}-{target_project}"
 
         #4. Create Metadata Package (the " Suitcase")
         # This Json object travels inside the token to the python Agent
@@ -79,7 +79,7 @@ class LiveKitTokenView(APIView):
                 .with_metadata(user_metadata) \
                 .with_grants(api.VideoGrants(
                 room_join=True,
-                room="nexus-voice-room",  # You can make this dynamic later if needed
+                room=room_name,
             ))
             jwt_token = token.to_jwt()
         except Exception as e:
