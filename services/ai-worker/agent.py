@@ -55,6 +55,7 @@ async def entrypoint(ctx: JobContext):
     if participant.metadata:
         try:
             meta = json.loads(participant.metadata)
+            # Extract voice and username
             selected_voice_alias = meta.get("voice_id", "sarah")
             user_name = meta.get("username", "Commander")
             logger.info(f"📋 User Config: Voice={selected_voice_alias}, User={user_name}")
@@ -63,12 +64,14 @@ async def entrypoint(ctx: JobContext):
 
     # Map frontend aliases to Deepgram Aura models
     deepgram_voices = {
-        "sarah": "aura-asteria-en",
-        "marcus": "aura-orion-en",
-        "nova": "aura-luna-en",
-        "echo": "aura-arcas-en",
+        "sarah": "aura-asteria-en",  # Default Female
+        "marcus": "aura-orion-en",  # Deep Male
+        "nova": "aura-luna-en",  # Soft Female
+        "echo": "aura-arcas-en",  # Calm Male
     }
-    target_model = deepgram_voices.get(selected_voice_alias.lower(), "aura-asteria-en")
+
+    # ROBUSTNESS FIX: .strip() removes accidental spaces from URL params
+    target_model = deepgram_voices.get(selected_voice_alias.lower().strip(), "aura-asteria-en")
 
     # ---------------------------------------------------------
     # 4. Define Agent Pipeline
@@ -81,6 +84,8 @@ async def entrypoint(ctx: JobContext):
         stt=deepgram.STT(model="nova-2-general"),
 
         llm=groq.LLM(model="llama-3.1-8b-instant"),
+
+        # Apply the dynamic voice model here
         tts=deepgram.TTS(model=target_model),
 
         chat_ctx=llm.ChatContext().append(
