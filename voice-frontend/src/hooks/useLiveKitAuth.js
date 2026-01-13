@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import { useSearchParams } from 'react-router-dom'; // <--- 1. New Import
 
 export const useLiveKitAuth = () => {
     const { token } = useAuth(); // Get the Django Access Token
@@ -9,21 +10,31 @@ export const useLiveKitAuth = () => {
     const [error, setError] = useState(null);
     const [isConnecting, setIsConnecting] = useState(true);
 
+    // 2. Capture URL Parameters (Voice & Project)
+    const [searchParams] = useSearchParams();
+    const voiceId = searchParams.get('voice') || 'sarah';
+    const projectId = searchParams.get('project') || 'default';
+
     useEffect(() => {
         const connectToLiveKit = async () => {
             if (!token) return;
 
             try {
                 setIsConnecting(true);
-                // 1. Call your verified Backend Endpoint
-                // Make sure this matches your actual IP and Port
+
+                // 3. Call your verified Backend Endpoint
                 const API_URL = `http://${window.location.hostname}:8000/api/v1/projects/livekit/token/`;
 
                 const response = await axios.get(API_URL, {
-                    headers: { Authorization: `Bearer ${token}` }
+                    headers: { Authorization: `Bearer ${token}` },
+                    // 4. Send the selection to Backend
+                    params: {
+                        voice: voiceId,     // Sends ?voice=marcus
+                        project: projectId  // Sends ?project=5
+                    }
                 });
 
-                // 2. Set the data needed for the Room
+                // 5. Set the data needed for the Room
                 setRoomToken(response.data.token);
                 setWsUrl(response.data.url);
                 setIsConnecting(false);
@@ -36,7 +47,7 @@ export const useLiveKitAuth = () => {
         };
 
         connectToLiveKit();
-    }, [token]);
+    }, [token, voiceId, projectId]); // <--- Re-run if voice or project changes
 
     return { roomToken, wsUrl, error, isConnecting };
 };
