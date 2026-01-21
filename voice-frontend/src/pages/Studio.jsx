@@ -19,7 +19,7 @@ import '@livekit/components-styles';
 import {
     Play, Mic2, Wand2, MessageSquare, Wifi, Bot, User,
     Sliders, History, Sparkles, Download, ArrowLeft,
-    UploadCloud, FileText, X, CheckCircle2
+    UploadCloud, FileText, X, CheckCircle2, FileAudio
 } from 'lucide-react';
 
 // ==========================================
