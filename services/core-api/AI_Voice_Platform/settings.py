@@ -162,6 +162,22 @@ SIMPLE_JWT = {
     'SIGNING_KEY': SECRET_KEY,
     'AUTH_HEADER_TYPES': ('Bearer',),                # Format: "Authorization: Bearer <token>"
 }
+# ==========================================
+# 📧 SMTP Email Configuration (Secure)
+# ==========================================
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+
+# reading from the .env file
+EMAIL_HOST = os.getenv('EMAIL_HOST')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587)) #  conversion integer
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS') == 'True' # txt to Boolean
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = f"Nexus AI <{os.getenv('EMAIL_HOST_USER')}>"
+
+# to confirm during development
+if not EMAIL_HOST or not EMAIL_HOST_PASSWORD:
+    print("⚠️ WARNING: Email configuration is missing in .env file")
 
 
 # -----------------------------------------------------------------------------
@@ -177,6 +193,7 @@ CORS_ALLOWED_ORIGINS = [
 # CORS_ALLOW_ALL_ORIGINS = True
 
 
+
 # -----------------------------------------------------------------------------
 # 9. LIVEKIT API (AI Voice Service)
 # -----------------------------------------------------------------------------
@@ -184,3 +201,4 @@ CORS_ALLOWED_ORIGINS = [
 LIVEKIT_URL = os.environ.get("LIVEKIT_URL")
 LIVEKIT_API_KEY = os.environ.get("LIVEKIT_API_KEY")
 LIVEKIT_API_SECRET = os.environ.get("LIVEKIT_API_SECRET")
+

@@ -8,3 +8,10 @@ DB_PORT=5555
 LIVEKIT_URL=wss:********************
 LIVEKIT_API_KEY=API**********************
 LIVEKIT_API_SECRET=***************
+
+# Email Configuration
+EMAIL_HOST=smtp.yourdomain.com
+EMAIL_PORT=587
+EMAIL_HOST_USER=info@yourdomain.com
+EMAIL_HOST_PASSWORD=your_strong_password_here
+EMAIL_USE_TLS=True
