@@ -184,10 +184,9 @@ async def request_fnc(req: JobRequest) -> None:
 
 
 if __name__ == "__main__":
-    # 🚀 CRITICAL FIX: initialization_timeout
-    # Increased to 60.0s to prevent 'killing process' errors on slower boots.
+    # ✅ FIX APPLIED: initialization_timeout removed.
+    # This runs the worker with default settings compatible with the latest library.
     cli.run_app(WorkerOptions(
         entrypoint_fnc=entrypoint,
         request_fnc=request_fnc,
-        initialization_timeout=60.0,
     ))
