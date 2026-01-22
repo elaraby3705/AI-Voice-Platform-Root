@@ -1,7 +1,10 @@
 import { createContext, useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import toast from 'react-hot-toast';
+
+// Import the API configuration and helper functions
+import api from '../api/axios';
+import { registerUser, loginUser, verifyEmail } from '../api/auth';
 
 export const AuthContext = createContext();
 
@@ -9,29 +12,24 @@ export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
+    // Using 'access_token' to match your axios.js interceptor
     const [token, setToken] = useState(localStorage.getItem('access_token') || null);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
-    // Dynamic API URL for Localhost/VM
-    const API_URL = `http://${window.location.hostname}:8000/api/v1/auth`;
-
-    // 1. Check Auth on Load & Fetch User (Using the 'Me' Endpoint)
+    // 1. Initialization: Check Auth & Fetch User on Load
     useEffect(() => {
         const initAuth = async () => {
             const storedToken = localStorage.getItem('access_token');
 
             if (storedToken) {
                 setToken(storedToken);
-                axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
-
-                // ⚠️ NEW: We try to fetch fresh user data from the backend
-                // This ensures the token is actually valid on the server
                 try {
+                    // We use the 'api' instance which automatically attaches the token
                     await fetchUser();
                 } catch (error) {
                     console.log("Token invalid or expired");
-                    logout(false); // Logout without API call if token is invalid
+                    logout(false); // Silent logout
                 }
             } else {
                 setLoading(false);
@@ -41,53 +39,86 @@ export const AuthProvider = ({ children }) => {
         initAuth();
     }, []);
 
-    // 🆕 4. Fetch User Function (The Missing Endpoint)
+    // 2. Fetch User Profile
     const fetchUser = async () => {
         try {
-            // GET /api/v1/auth/me/
-            const response = await axios.get(`${API_URL}/me/`);
+            // Assumes endpoint is 'accounts/me/' or just 'me/' depending on urls.py
+            // Using 'api' instance handles the Base URL and Headers
+            const response = await api.get('accounts/me/');
             setUser(response.data);
-            localStorage.setItem('user_data', JSON.stringify(response.data));
             setLoading(false);
         } catch (error) {
             console.error("Failed to fetch user", error);
             setLoading(false);
-            throw error; // Let the caller handle the error
+            throw error;
         }
     };
 
-    // 2. Login Function
-    const login = async (email, password) => {
+    // 3. Register Function (Step 1: Send OTP)
+    const register = async (userData) => {
         try {
-            const response = await axios.post(`${API_URL}/login/`, {
-                email,
-                password
-            });
+            // Call API to send OTP email
+            await registerUser(userData);
 
-            const { access, refresh, user } = response.data;
+            toast.success('Account created! Please check your email for the code.');
+            // We DO NOT set token here anymore.
+            // The UI should verify success and move to Step 2 (OTP Input).
+            return true;
 
-            if (!access) throw new Error("No access token received!");
+        } catch (error) {
+            console.error("Register Error:", error);
+            const errorMsg = error.response?.data?.error || "Registration failed.";
+            toast.error(errorMsg);
+            throw error; // Throw to let the Component handle UI state (like loading spinners)
+        }
+    };
 
-            // Store Tokens
-            localStorage.setItem('access_token', access);
-            localStorage.setItem('refresh_token', refresh);
-            setToken(access);
+    // 4. Verify OTP Function (Step 2: Login)
+    const verifyOtp = async (email, otp) => {
+        try {
+            // Exchange OTP for Tokens
+            const data = await verifyEmail(email, otp);
 
-            // Set Header
-            axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
+            // Save Tokens
+            localStorage.setItem('access_token', data.access);
+            localStorage.setItem('refresh_token', data.refresh);
 
-            // Set User
-            // Note: If your LoginSerializer returns user data, use it.
-            // If not, we call fetchUser() immediately after.
-            if (user) {
-                setUser(user);
-                localStorage.setItem('user_data', JSON.stringify(user));
+            // Update State
+            setToken(data.access);
+            setUser(data.user); // Assuming the backend returns user object here
+
+            toast.success('Identity Verified. Access Granted.');
+            navigate('/projects'); // Redirect to Dashboard
+            return true;
+
+        } catch (error) {
+            console.error("Verification Error:", error);
+            toast.error("Invalid Code. Please try again.");
+            throw error;
+        }
+    };
+
+    // 5. Login Function
+    const login = async (credentials) => {
+        try {
+            const data = await loginUser(credentials);
+
+            // Save Tokens
+            localStorage.setItem('access_token', data.access);
+            localStorage.setItem('refresh_token', data.refresh);
+
+            setToken(data.access);
+
+            // Fetch User Data immediately after login
+            // (Unless 'data.user' is already returned by login endpoint)
+            if (data.user) {
+                setUser(data.user);
             } else {
                 await fetchUser();
             }
 
-            toast.success('System Access Granted.');
-            navigate('/dashboard');
+            toast.success('Welcome back, Commander.');
+            navigate('/projects');
             return true;
 
         } catch (error) {
@@ -97,66 +128,18 @@ export const AuthProvider = ({ children }) => {
             } else {
                 toast.error("Login failed.");
             }
-            return false;
+            throw error;
         }
     };
 
-    // 3. Register Function
-    const register = async (userData) => {
-        try {
-            const response = await axios.post(`${API_URL}/register/`, userData);
-
-            if (response.data.access) {
-                const { access, refresh, user } = response.data;
-                localStorage.setItem('access_token', access);
-                localStorage.setItem('refresh_token', refresh);
-                setToken(access);
-                axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
-
-                if (user) {
-                    setUser(user);
-                    localStorage.setItem('user_data', JSON.stringify(user));
-                } else {
-                    await fetchUser();
-                }
-
-                toast.success('Identity Created. Logging in...');
-                navigate('/dashboard');
-                return true;
-            }
-
-            toast.success('Identity Created Successfully.');
-            navigate('/login');
-            return true;
-
-        } catch (error) {
-            console.error("Register Error:", error);
-            toast.error("Registration failed.");
-            return false;
-        }
-    };
-
-    // 4. Logout Function
-    // Added 'callApi' flag to prevent infinite loops if token is already dead
-    const logout = async (callApi = true) => {
-        const refreshToken = localStorage.getItem('refresh_token');
-
-        if (callApi && refreshToken && token) {
-            try {
-                await axios.post(`${API_URL}/logout/`,
-                    { refresh: refreshToken },
-                    { headers: { Authorization: `Bearer ${token}` } }
-                );
-            } catch (err) {
-                console.warn("Server logout failed, clearing local anyway.");
-            }
-        }
+    // 6. Logout Function
+    const logout = (callApi = true) => {
+        // Optional: Call backend logout if needed
+        // if (callApi) { ... api.post('accounts/logout/') ... }
 
         // Cleanup Local Storage
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
-        localStorage.removeItem('user_data');
-        delete axios.defaults.headers.common['Authorization'];
 
         setToken(null);
         setUser(null);
@@ -171,8 +154,9 @@ export const AuthProvider = ({ children }) => {
         loading,
         login,
         register,
+        verifyOtp, // Exported for the UI to use
         logout,
-        fetchUser, // Exported so you can manually refresh user data if needed
+        fetchUser,
         isAuthenticated: !!token
     };
 
