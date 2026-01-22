@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { useAuth } from '../context/AuthContext'; // Updated path to match your structure
+import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 import { Mic, Lock, Mail, ArrowRight, Loader2 } from 'lucide-react';
 
 const Login = () => {
+    // 1. Get login function from Context
     const { login } = useAuth();
 
     const [formData, setFormData] = useState({
@@ -11,23 +12,42 @@ const Login = () => {
         password: ''
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState(''); // State to show errors
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
+        if (error) setError(''); // Clear error when user types
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
+        setError('');
 
-        // Pass 'email' instead of 'username' to match the new Backend
-        await login(formData.email, formData.password);
+        try {
+            // ✅ CRITICAL FIX:
+            // Send email and password inside a single object to match AuthContext expectations
+            await login({
+                email: formData.email,
+                password: formData.password
+            });
 
-        setIsSubmitting(false);
+            // Redirection to Dashboard happens automatically inside AuthContext on success
+
+        } catch (err) {
+            setIsSubmitting(false);
+            // Show appropriate error message to the user based on backend response
+            if (err.response?.status === 401) {
+                setError("Invalid email or password.");
+            } else if (err.response?.status === 400) {
+                setError("Please check your input data.");
+            } else {
+                setError("Server error. Please try again later.");
+            }
+        }
     };
 
     return (
-        // Fixed: min-h-screen ensures perfect vertical centering
         <div className="flex flex-col items-center justify-center min-h-screen px-4 bg-[#050505]">
 
             {/* 🌌 Background Glow Effect */}
@@ -46,9 +66,17 @@ const Login = () => {
 
                 {/* 📝 Form Card */}
                 <div className="bg-black/40 backdrop-blur-xl border border-white/10 p-8 rounded-2xl shadow-2xl">
+
+                    {/* Error Message Banner */}
+                    {error && (
+                        <div className="mb-6 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs text-center font-bold uppercase tracking-wide animate-pulse">
+                            {error}
+                        </div>
+                    )}
+
                     <form onSubmit={handleSubmit} className="space-y-6">
 
-                        {/* Email Input (Changed from Username) */}
+                        {/* Email Input */}
                         <div className="space-y-2">
                             <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1">Email Identity</label>
                             <div className="relative group">
