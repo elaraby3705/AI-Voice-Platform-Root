@@ -40,7 +40,7 @@ export const AuthProvider = ({ children }) => {
     // Helper: Fetch User Data
     const fetchUser = async () => {
         try {
-            const response = await api.get('accounts/me/');
+            const response = await api.get('auth/me/');
             setUser(response.data);
         } catch (error) {
             throw error;
