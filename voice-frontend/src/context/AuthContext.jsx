@@ -1,7 +1,10 @@
 import { createContext, useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import toast from 'react-hot-toast';
+
+// Import the API helpers we created earlier
+import api from '../api/axios';
+import { registerUser, loginUser, verifyEmail } from '../api/auth';
 
 export const AuthContext = createContext();
 
@@ -9,158 +12,123 @@ export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
+    // We use 'access_token' to match your axios interceptor logic
     const [token, setToken] = useState(localStorage.getItem('access_token') || null);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
-    // Dynamic API URL for Localhost/VM
-    const API_URL = `http://${window.location.hostname}:8000/api/v1/auth`;
-
-    // 1. Check Auth on Load & Fetch User (Using the 'Me' Endpoint)
+    // 1. Check Auth on Load
     useEffect(() => {
         const initAuth = async () => {
             const storedToken = localStorage.getItem('access_token');
-
             if (storedToken) {
                 setToken(storedToken);
-                axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
-
-                // ⚠️ NEW: We try to fetch fresh user data from the backend
-                // This ensures the token is actually valid on the server
                 try {
+                    // Verify token validity by fetching user profile
                     await fetchUser();
                 } catch (error) {
-                    console.log("Token invalid or expired");
-                    logout(false); // Logout without API call if token is invalid
+                    console.warn("Token expired or invalid.");
+                    logout(false);
                 }
             } else {
                 setLoading(false);
             }
         };
-
         initAuth();
     }, []);
 
-    // 🆕 4. Fetch User Function (The Missing Endpoint)
+    // Helper: Fetch User Data
     const fetchUser = async () => {
         try {
-            // GET /api/v1/auth/me/
-            const response = await axios.get(`${API_URL}/me/`);
+            const response = await api.get('accounts/me/');
             setUser(response.data);
-            localStorage.setItem('user_data', JSON.stringify(response.data));
-            setLoading(false);
         } catch (error) {
-            console.error("Failed to fetch user", error);
+            throw error;
+        } finally {
             setLoading(false);
-            throw error; // Let the caller handle the error
         }
     };
 
-    // 2. Login Function
-    const login = async (email, password) => {
-        try {
-            const response = await axios.post(`${API_URL}/login/`, {
-                email,
-                password
-            });
-
-            const { access, refresh, user } = response.data;
-
-            if (!access) throw new Error("No access token received!");
-
-            // Store Tokens
-            localStorage.setItem('access_token', access);
-            localStorage.setItem('refresh_token', refresh);
-            setToken(access);
-
-            // Set Header
-            axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
-
-            // Set User
-            // Note: If your LoginSerializer returns user data, use it.
-            // If not, we call fetchUser() immediately after.
-            if (user) {
-                setUser(user);
-                localStorage.setItem('user_data', JSON.stringify(user));
-            } else {
-                await fetchUser();
-            }
-
-            toast.success('System Access Granted.');
-            navigate('/dashboard');
-            return true;
-
-        } catch (error) {
-            console.error("Login Error:", error);
-            if (error.response?.status === 401) {
-                toast.error("Invalid Credentials.");
-            } else {
-                toast.error("Login failed.");
-            }
-            return false;
-        }
-    };
-
-    // 3. Register Function
+    // 2. Register (Step 1: Send OTP)
+    // ⚠️ CRITICAL CHANGE: This function NO LONGER redirects.
     const register = async (userData) => {
         try {
-            const response = await axios.post(`${API_URL}/register/`, userData);
+            await registerUser(userData);
 
-            if (response.data.access) {
-                const { access, refresh, user } = response.data;
-                localStorage.setItem('access_token', access);
-                localStorage.setItem('refresh_token', refresh);
-                setToken(access);
-                axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
-
-                if (user) {
-                    setUser(user);
-                    localStorage.setItem('user_data', JSON.stringify(user));
-                } else {
-                    await fetchUser();
-                }
-
-                toast.success('Identity Created. Logging in...');
-                navigate('/dashboard');
-                return true;
-            }
-
-            toast.success('Identity Created Successfully.');
-            navigate('/login');
+            toast.success('Verification code sent to your email.');
+            // Return true so the UI knows to switch to Step 2
             return true;
 
         } catch (error) {
             console.error("Register Error:", error);
-            toast.error("Registration failed.");
+            const errorMsg = error.response?.data?.email
+                ? error.response.data.email[0]
+                : (error.response?.data?.error || "Registration failed.");
+
+            toast.error(errorMsg);
             return false;
         }
     };
 
-    // 4. Logout Function
-    // Added 'callApi' flag to prevent infinite loops if token is already dead
-    const logout = async (callApi = true) => {
-        const refreshToken = localStorage.getItem('refresh_token');
+    // 3. Verify OTP (Step 2: Auto-Login)
+    const verifyOtp = async (email, otp) => {
+        try {
+            const data = await verifyEmail(email, otp);
 
-        if (callApi && refreshToken && token) {
-            try {
-                await axios.post(`${API_URL}/logout/`,
-                    { refresh: refreshToken },
-                    { headers: { Authorization: `Bearer ${token}` } }
-                );
-            } catch (err) {
-                console.warn("Server logout failed, clearing local anyway.");
-            }
+            // Save Tokens
+            localStorage.setItem('access_token', data.access);
+            localStorage.setItem('refresh_token', data.refresh);
+
+            // Update State
+            setToken(data.access);
+            setUser(data.user);
+
+            toast.success('Identity Verified. Access Granted.');
+
+            // ✅ Redirect to Dashboard immediately after verification
+            navigate('/projects');
+            return true;
+
+        } catch (error) {
+            console.error("Verification Error:", error);
+            toast.error("Invalid Code. Please try again.");
+            throw error;
         }
+    };
 
-        // Cleanup Local Storage
+    // 4. Login (Standard)
+    const login = async (credentials) => {
+        try {
+            const data = await loginUser(credentials);
+
+            localStorage.setItem('access_token', data.access);
+            localStorage.setItem('refresh_token', data.refresh);
+
+            setToken(data.access);
+
+            if (data.user) {
+                setUser(data.user);
+            } else {
+                await fetchUser();
+            }
+
+            toast.success('Welcome back.');
+            navigate('/projects');
+            return true;
+
+        } catch (error) {
+            console.error("Login Error:", error);
+            toast.error(error.response?.status === 401 ? "Invalid Credentials." : "Login failed.");
+            throw error;
+        }
+    };
+
+    // 5. Logout
+    const logout = (callApi = true) => {
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
-        localStorage.removeItem('user_data');
-        delete axios.defaults.headers.common['Authorization'];
-
         setToken(null);
         setUser(null);
-
         if (callApi) toast.success('Session Terminated.');
         navigate('/login');
     };
@@ -171,8 +139,9 @@ export const AuthProvider = ({ children }) => {
         loading,
         login,
         register,
+        verifyOtp,
         logout,
-        fetchUser, // Exported so you can manually refresh user data if needed
+        fetchUser,
         isAuthenticated: !!token
     };
 
@@ -186,3 +155,5 @@ export const AuthProvider = ({ children }) => {
         </AuthContext.Provider>
     );
 };
+
+export default AuthContext;
