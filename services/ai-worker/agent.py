@@ -3,6 +3,9 @@ import json
 import asyncio
 from dotenv import load_dotenv
 
+# 1. 👇 Import turn_detector explicitly as a module (FIX HERE)
+import livekit.agents.turn_detector as turn_detector
+
 from livekit.agents import (
     AutoSubscribe,
     JobContext,
@@ -10,7 +13,7 @@ from livekit.agents import (
     WorkerOptions,
     cli,
     llm,
-    turn_detector, # 1. ✅ Added turn_detector import
+    # turn_detector,  <-- REMOVED from here to fix ImportError
 )
 from livekit.agents.pipeline import VoicePipelineAgent
 from livekit.plugins import silero, deepgram, groq
@@ -100,7 +103,7 @@ async def entrypoint(ctx: JobContext):
         # TTS
         tts=deepgram.TTS(model=target_model),
 
-        # 🚀 2. FIX: Use EOUModel instead of silero.TurnDetector
+        # 🚀 FIX: Now referencing the module correctly
         turn_detector=turn_detector.EOUModel(
             vad=vad_model if vad_model else silero.VAD.load(),
             min_end_of_speech_duration=0.6
@@ -157,7 +160,6 @@ async def request_fnc(req: JobRequest) -> None:
 
 
 if __name__ == "__main__":
-    # ✅ FIX: No initialization_timeout
     cli.run_app(WorkerOptions(
         entrypoint_fnc=entrypoint,
         request_fnc=request_fnc,
