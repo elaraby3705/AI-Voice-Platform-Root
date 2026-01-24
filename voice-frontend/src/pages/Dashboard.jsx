@@ -2,17 +2,17 @@ import { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
 import {
-    Activity, Cpu, Globe, ArrowUpRight, ArrowDownRight,
-    Terminal, Clock, Plus, Copy, BookOpen, ShieldCheck, Zap,
-    FileAudio, Calendar, MoreHorizontal, Loader2, Mic // 👈 Added Mic Icon
+    Activity, Cpu, ArrowUpRight, ArrowDownRight,
+    Clock, Plus, Copy, BookOpen, ShieldCheck, Zap,
+    FileAudio, Calendar, Loader2, Mic
 } from 'lucide-react';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 
-// 👇 Import the Voice Interface
+// 👇 IMPORTANT: Import the secure 'api' instance instead of standard 'axios'
+import api from '../api/axios';
 import NexusInterface from '../components/voice/NexusInterface';
 
 const Dashboard = () => {
@@ -20,21 +20,22 @@ const Dashboard = () => {
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // 👇 State for Voice Modal
+    // Voice Modal State
     const [isVoiceOpen, setIsVoiceOpen] = useState(false);
 
-    // Dynamic User Name
     const displayUser = user?.email?.split('@')[0] || 'Operator';
 
-    // 1. Fetch Real Projects from Django
+    // 1. Fetch Projects (Now Authenticated!)
     useEffect(() => {
         const fetchProjects = async () => {
             try {
-                const API_URL = `http://${window.location.hostname}:8000/api/v1/projects/`;
-                const response = await axios.get(API_URL);
+                // 👇 CLEAN CODE: No more hardcoded http://localhost...
+                // The 'api' instance handles the Base URL and the Token automatically.
+                const response = await api.get('/projects/');
                 setProjects(response.data);
             } catch (error) {
-                console.error("Failed to fetch projects", error);
+                console.error("Failed to fetch projects:", error);
+                // Optional: setProjects([]) if error to prevent crash
             } finally {
                 setLoading(false);
             }
@@ -45,7 +46,7 @@ const Dashboard = () => {
         }
     }, [user]);
 
-    // Mock Data: Throughput
+    // Mock Data for Charts
     const trafficData = [
         { time: '10:00', requests: 120 }, { time: '10:05', requests: 180 },
         { time: '10:10', requests: 150 }, { time: '10:15', requests: 290 },
@@ -83,9 +84,8 @@ const Dashboard = () => {
                     <QuickAction title="Access Tokens" icon={ShieldCheck} shortcut="T" color="slate" />
                 </div>
 
-                {/* --- Main Analytics Grid --- */}
+                {/* --- Analytics Grid --- */}
                 <div className="grid grid-cols-3 gap-6 mb-8 animate-fade-in-up delay-200">
-
                     {/* Traffic Chart */}
                     <div className="col-span-2 bg-[#0A0A0A] border border-white/10 rounded-3xl p-6 relative overflow-hidden group">
                         <div className="flex justify-between items-center mb-6 relative z-10">
@@ -94,7 +94,6 @@ const Dashboard = () => {
                             </h3>
                             <span className="text-[10px] font-bold bg-indigo-500/10 text-indigo-400 px-2 py-1 rounded border border-indigo-500/20">LIVE</span>
                         </div>
-
                         <div className="h-[250px] w-full relative z-10">
                             <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={trafficData}>
@@ -112,7 +111,6 @@ const Dashboard = () => {
                                 </AreaChart>
                             </ResponsiveContainer>
                         </div>
-                        <div className="absolute -top-20 -right-20 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl group-hover:bg-indigo-500/10 transition-all duration-1000"></div>
                     </div>
 
                     {/* KPI Cards */}
@@ -123,7 +121,7 @@ const Dashboard = () => {
                     </div>
                 </div>
 
-                {/* --- Bottom Row: Recent Projects --- */}
+                {/* --- Recent Projects --- */}
                 <div className="grid grid-cols-1 gap-6 animate-fade-in-up delay-300">
                     <div className="bg-[#0A0A0A] border border-white/10 rounded-3xl p-6 flex flex-col min-h-[300px]">
                         <div className="flex justify-between items-center mb-6">
@@ -189,7 +187,7 @@ const Dashboard = () => {
 
             </main>
 
-            {/* 🔥 NEXUS VOICE TRIGGER BUTTON 🔥 */}
+            {/* 🔥 Voice Trigger Button 🔥 */}
             <button
                 onClick={() => setIsVoiceOpen(true)}
                 className="fixed bottom-8 right-8 group flex items-center gap-3 pl-4 pr-2 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full shadow-[0_0_30px_-5px_rgba(79,70,229,0.5)] transition-all duration-300 hover:scale-105 hover:-translate-y-1 z-40 border border-white/10"
@@ -200,7 +198,7 @@ const Dashboard = () => {
                 </div>
             </button>
 
-            {/* 🔥 THE VOICE MODAL 🔥 */}
+            {/* Voice Modal Overlay */}
             <NexusInterface
                 isOpen={isVoiceOpen}
                 onClose={() => setIsVoiceOpen(false)}
@@ -210,7 +208,7 @@ const Dashboard = () => {
     );
 };
 
-// --- Sub Components (unchanged) ---
+// --- Sub Components ---
 
 const QuickAction = ({ title, icon: Icon, shortcut, color }) => (
     <button className="bg-[#0A0A0A] border border-white/10 p-4 rounded-2xl flex items-center justify-between group hover:border-indigo-500/50 hover:bg-white/[0.02] transition-all">
