@@ -58,7 +58,7 @@ const SessionContent = ({ onClose }) => {
                 </div>
 
                 <div className="text-center space-y-2">
-                    <h2 className="text-2xl font-light text-white tracking-wider">Nexus AI</h2>
+                    <h2 className="text-2xl font-light text-white tracking-wider">AI Voice platform</h2>
                     <p className="text-indigo-300/60 text-sm font-mono animate-pulse">
                         {isMuted ? '[ MICROPHONE MUTED ]' : '[ LISTENING ]'}
                     </p>
