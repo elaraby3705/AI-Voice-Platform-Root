@@ -1,30 +1,32 @@
 import axios from 'axios';
 
-// 1. Dynamic Base URL Construction
+// 1. Dynamic Base URL Construction (The Smart Fix) 🧠
+// This function ignores any hardcoded IPs in .env files that caused the timeout.
+// It builds the URL based on your current browser address (localhost).
 const getBaseUrl = () => {
-    // ⚠️ FIX: We force the use of the current browser hostname (localhost).
-    // This ignores any old/broken IP addresses that might be cached in your .env file.
     const hostname = window.location.hostname;
+    // The result will be: http://localhost:8000/api/v1
+    // This URL will pass through VirtualBox Port Forwarding and reach the backend successfully.
     return `http://${hostname}:8000/api/v1`;
 };
 
 const api = axios.create({
     baseURL: getBaseUrl(),
-    timeout: 10000, // 10 seconds timeout
+    timeout: 15000, // ⏳ Increased timeout to 15 seconds to account for any latency in the virtual network.
     headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
     },
 });
 
-// 2. Request Interceptor (The Security Guard)
+// 2. Request Interceptor (Simple & Secure) 🛡️
 api.interceptors.request.use(
     (config) => {
+        // Retrieve the token using the correct key from local storage
         const token = localStorage.getItem('access_token');
 
-        // ⚠️ FIX: Simplified logic.
-        // We attach the token whenever it exists, without checking the hostname.
-        // This solves the 401 error when switching between IPs/Localhost.
+        // Attach the token directly without complex hostname checks.
+        // This resolves the 401 error caused by IP address mismatches in NAT environments.
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -36,23 +38,29 @@ api.interceptors.request.use(
     }
 );
 
-// 3. Response Interceptor (The Error Handler)
+// 3. Response Interceptor (Error Handling) 🚨
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config;
 
-        // Handle 401 Unauthorized (Token Expired)
+        // Scenario 1: Token expired (401 Unauthorized)
         if (error.response?.status === 401 && !originalRequest._retry) {
-            console.warn("⚠️ Unauthorized! Token might be expired.");
-            // You can uncomment the line below if you want to auto-logout
-            // localStorage.removeItem('access_token');
+            console.warn("⚠️ Session Expired. Cleaning up...");
+
+            // Clear browser storage to force a fresh, clean login
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+
+            // Redirect user to login page (optional, usually better handled by AuthContext)
             // window.location.href = '/login';
         }
 
-        // Handle Network Errors (Server Down / Wrong IP)
+        // Scenario 2: Server not responding (Network Error)
+        // This happens if the backend is down or Port Forwarding is incorrect.
         if (!error.response) {
-            console.error("🚨 Network Error: Backend is unreachable at " + error.config.baseURL);
+            console.error(`🚨 Network Error: Unable to reach Backend at ${getBaseUrl()}`);
+            console.error("Check if Docker is running and Port 8000 is forwarded in VirtualBox.");
         }
 
         return Promise.reject(error);

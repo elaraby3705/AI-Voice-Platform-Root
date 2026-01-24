@@ -173,7 +173,7 @@ EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587)) #  conversion integer
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS') == 'True' # txt to Boolean
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
-DEFAULT_FROM_EMAIL = f"Nexus AI <{os.getenv('EMAIL_HOST_USER')}>"
+DEFAULT_FROM_EMAIL = f"AI Voice System  <{os.getenv('EMAIL_HOST_USER')}>"
 
 # to confirm during development
 if not EMAIL_HOST or not EMAIL_HOST_PASSWORD:
