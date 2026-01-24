@@ -12,8 +12,7 @@ import NexusOrb from './NexusOrb';
 import { Mic, MicOff, PhoneOff, X, Loader2, Settings2, Signal } from 'lucide-react';
 
 /**
- * SessionContent - The internal logic that runs ONLY when connected.
- * Handles Mute toggles, Connection Status, and the Orb.
+ * SessionContent - Logic inside the room (Audio, Mute, Visuals)
  */
 const SessionContent = ({ onClose }) => {
     const { localParticipant } = useLocalParticipant();
@@ -35,7 +34,6 @@ const SessionContent = ({ onClose }) => {
         }
     };
 
-    // Determine the Orb state based on actual connection status
     const getOrbState = () => {
         if (connectionState === ConnectionState.Connecting) return 'connecting';
         if (connectionState === ConnectionState.Connected) return 'connected';
@@ -44,7 +42,7 @@ const SessionContent = ({ onClose }) => {
 
     return (
         <div className="flex flex-col items-center justify-between h-full w-full py-12 relative z-10">
-            {/* 1. Header: Signal Status */}
+            {/* 1. Signal Status */}
             <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
                 <div className={`w-2 h-2 rounded-full ${connectionState === ConnectionState.Connected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
                 <span className="text-xs font-mono text-slate-400 tracking-widest uppercase">
@@ -53,13 +51,12 @@ const SessionContent = ({ onClose }) => {
                 <Signal className="w-3 h-3 text-slate-500 ml-2" />
             </div>
 
-            {/* 2. The Core: Nexus Orb */}
+            {/* 2. Nexus Orb */}
             <div className="flex-1 flex flex-col items-center justify-center w-full">
                 <div className="scale-125 mb-8">
                     <NexusOrb state={getOrbState()} />
                 </div>
 
-                {/* Status Text */}
                 <div className="text-center space-y-2">
                     <h2 className="text-2xl font-light text-white tracking-wider">Nexus AI</h2>
                     <p className="text-indigo-300/60 text-sm font-mono animate-pulse">
@@ -68,7 +65,7 @@ const SessionContent = ({ onClose }) => {
                 </div>
             </div>
 
-            {/* 3. Control Deck (Buttons) */}
+            {/* 3. Controls */}
             <div className="flex items-center gap-6">
                 <button className="p-4 rounded-full bg-white/5 border border-white/10 text-slate-400 hover:bg-white/10 hover:text-white transition-all">
                     <Settings2 className="w-6 h-6" />
@@ -97,26 +94,27 @@ const SessionContent = ({ onClose }) => {
 };
 
 /**
- * NexusInterface - The Outer Container (Modal & Logic)
+ * NexusInterface - Main Container
+ * ✅ Fixed: Now accepts serverUrl from hook
  */
-const NexusInterface = ({ isOpen, onClose }) => {
-    // Fetch Token
-    const { token, loading, error } = useNexusToken(isOpen);
+const NexusInterface = ({ isOpen, onClose, selectedVoice = 'sarah', projectId = 'default' }) => {
+
+    const { token, serverUrl, loading, error } = useNexusToken(isOpen, selectedVoice, projectId);
 
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center">
-            {/* A. Backdrop (Blur & Darken) */}
+            {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-[#020617]/95 backdrop-blur-xl transition-opacity duration-500"
-                onClick={onClose} // Click outside to close (optional)
+                onClick={onClose}
             />
 
-            {/* B. Main Modal Container */}
+            {/* Modal Container */}
             <div className="relative w-full max-w-4xl h-[85vh] flex flex-col items-center justify-center">
 
-                {/* Close Button (Top Right) */}
+                {/* Close Button */}
                 <button
                     onClick={onClose}
                     className="absolute top-0 right-4 z-50 p-2 text-slate-500 hover:text-white transition-colors"
@@ -124,7 +122,7 @@ const NexusInterface = ({ isOpen, onClose }) => {
                     <X className="w-8 h-8" />
                 </button>
 
-                {/* C. State Handling */}
+                {/* Loading State */}
                 {loading && (
                     <div className="flex flex-col items-center gap-4 text-indigo-400 z-50">
                         <Loader2 className="w-16 h-16 animate-spin opacity-50" />
@@ -132,6 +130,7 @@ const NexusInterface = ({ isOpen, onClose }) => {
                     </div>
                 )}
 
+                {/* Error State */}
                 {error && (
                     <div className="z-50 bg-rose-950/50 border border-rose-500/30 p-8 rounded-2xl text-center backdrop-blur-md max-w-md">
                         <div className="w-16 h-16 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto mb-4 text-rose-500">
@@ -148,21 +147,18 @@ const NexusInterface = ({ isOpen, onClose }) => {
                     </div>
                 )}
 
-                {/* D. LiveKit Room (Only renders when token is ready) */}
-                {!loading && !error && token && (
+                {/* ✅ LiveKit Room (Connected via dynamic serverUrl) */}
+                {!loading && !error && token && serverUrl && (
                     <LiveKitRoom
                         token={token}
-                        serverUrl={import.meta.env.VITE_LIVEKIT_URL || "wss://aivoice-ywhajgoz.livekit.cloud"}
+                        serverUrl={serverUrl}
                         connect={true}
                         audio={true}
                         video={false}
                         onDisconnected={onClose}
                         className="w-full h-full"
                     >
-                        {/* 1. Invisible Audio Renderer (Crucial!) */}
                         <RoomAudioRenderer />
-
-                        {/* 2. The Internal Content */}
                         <SessionContent onClose={onClose} />
                     </LiveKitRoom>
                 )}
