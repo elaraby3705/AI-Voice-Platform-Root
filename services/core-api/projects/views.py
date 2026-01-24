@@ -2,6 +2,7 @@ import os
 import json
 import time
 import logging
+from django.conf import settings
 from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -10,7 +11,7 @@ from .models import Project
 from .serializers import ProjectSerializer
 from .permissions import IsOwner
 
-# Configure logger for standard debugging
+# Configure logger
 logger = logging.getLogger(__name__)
 
 
@@ -19,25 +20,17 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------
 
 class ProjectListCreateView(generics.ListCreateAPIView):
-    """
-    API endpoint that allows projects to be viewed or created.
-    """
     serializer_class = ProjectSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # Return only projects owned by the current user
         return Project.objects.filter(owner=self.request.user)
 
     def perform_create(self, serializer):
-        # Automatically set the owner to the current user
         serializer.save(owner=self.request.user)
 
 
 class ProjectDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """
-    API endpoint that allows a single project to be retrieved, updated, or deleted.
-    """
     serializer_class = ProjectSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwner]
 
@@ -46,59 +39,85 @@ class ProjectDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 # ---------------------------------------------------------
-# 2. LiveKit Token Generation View (Real-time Session)
+# 2. LiveKit Token Generation View (Enhanced & Smart) 🧠
 # ---------------------------------------------------------
 
 class LiveKitTokenView(APIView):
     """
     Generates a secure JWT token for LiveKit room access.
-
-    KEY FEATURE: Creates a unique 'session_id' for every request.
-    This ensures that changing a voice or project creates a completely new room,
-    forcing the Python Agent to restart with the correct settings immediately.
+    Now includes 'Smart Project Handling' to prevent errors if no project exists.
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
-        # 1. Retrieve & Validate Configuration
-        lk_api_key = os.getenv('LIVEKIT_API_KEY')
-        lk_api_secret = os.getenv('LIVEKIT_API_SECRET')
-        lk_url = os.getenv('LIVEKIT_URL')
+        user = request.user
+
+        # 1. Retrieve Configuration (Try settings first, fallback to os.environ)
+        lk_api_key = getattr(settings, 'LIVEKIT_API_KEY', os.getenv('LIVEKIT_API_KEY'))
+        lk_api_secret = getattr(settings, 'LIVEKIT_API_SECRET', os.getenv('LIVEKIT_API_SECRET'))
+        lk_url = getattr(settings, 'LIVEKIT_URL', os.getenv('LIVEKIT_URL'))
 
         if not lk_api_key or not lk_api_secret:
-            logger.error("LiveKit API Keys are missing in server environment.")
+            logger.error("❌ LiveKit API Keys are missing in server environment.")
             return Response(
                 {'error': 'Server configuration error: LiveKit credentials missing.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-        # 2. Extract Query Parameters (Client Preferences)
+        # 2. Extract Query Parameters
         target_voice = request.query_params.get('voice', 'sarah')
-        target_project_id = request.query_params.get('project', 'default')
+        requested_project_id = request.query_params.get('project', 'default')
 
-        # 3. Construct Participant Identity
-        # Use email or username, fallback to ID if neither exists
-        participant_identity = request.user.email or request.user.username or str(request.user.id)
-        participant_name = request.user.username or "Commander"
+        # -----------------------------------------------------
+        # 🧠 SMART LOGIC: Handle Project Selection
+        # -----------------------------------------------------
+        final_project = None
 
-        # 4. Generate Unique Session ID (The "Zombie Fix")
-        # We append a timestamp to the room name. This forces LiveKit to create a
-        # brand new room for every connection attempt, killing any old agents
-        # and ensuring the new voice selection is applied immediately.
+        if requested_project_id == 'default':
+            final_project = Project.objects.filter(owner=user).first()
+
+            if not final_project:
+                try:
+                    logger.info(f"🆕 Creating default project for user {user.username}")
+                    final_project = Project.objects.create(
+                        owner=user,
+                        title="General Session",
+                        description="Auto-generated workspace for voice sessions."
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to create default project: {e}")
+                    return Response({'error': 'Failed to auto-create project.'}, status=500)
+        else:
+            try:
+                final_project = Project.objects.get(id=requested_project_id, owner=user)
+            except Project.DoesNotExist:
+                logger.warning(f"⚠️ Project {requested_project_id} not found for user {user.username}")
+                return Response({'error': 'Project not found or access denied.'}, status=404)
+
+        # -----------------------------------------------------
+        # 3. Construct Token & Metadata
+        # -----------------------------------------------------
+
+        # Identity Logic
+        participant_identity = user.email or user.username or str(user.id)
+        participant_name = user.username or "Commander"
+
+        # Unique Session ID (Fixes caching/zombie agents)
         session_id = int(time.time())
-        room_name = f"nexus-{request.user.id}-{target_project_id}-{session_id}"
 
-        # 5. Build Metadata Payload (The "Suitcase")
-        # This JSON object is embedded in the token and read by the Python Agent.
+        room_name = f"nexus-{user.id}-{final_project.id}-{session_id}"
+
+        # The "Suitcase" (Metadata) - Now carries REAL DB ID
         user_metadata = json.dumps({
-            "user_id": str(request.user.id),
+            "user_id": str(user.id),
             "username": participant_name,
-            "voice_id": target_voice,  # Critical for voice selection
-            "project_id": target_project_id,
-            "session_id": session_id  # Helpful for debugging logic on agent side
+            "voice_id": target_voice,
+            "project_id": final_project.id,  # ✅ Real DB ID
+            "project_title": final_project.title,  # ✅ Bonus: Agent knows project name now
+            "session_id": session_id
         })
 
-        # 6. Create Access Token
+        # 4. Create LiveKit Token
         try:
             token = api.AccessToken(lk_api_key, lk_api_secret) \
                 .with_identity(participant_identity) \
@@ -111,18 +130,21 @@ class LiveKitTokenView(APIView):
 
             jwt_token = token.to_jwt()
 
-            logger.info(f"Generated token for user {request.user.username} in room {room_name}")
+            logger.info(f"✅ Token generated for {user.username} (Room: {room_name}, Voice: {target_voice})")
 
             return Response({
                 'token': jwt_token,
                 'url': lk_url,
                 'identity': participant_identity,
                 'room_name': room_name,
-                'metadata_sent': target_voice  # Confirms to frontend what was sent
+                'project': {
+                    'id': final_project.id,
+                    'title': final_project.title
+                }
             })
 
         except Exception as e:
-            logger.error(f"Failed to generate LiveKit token: {str(e)}")
+            logger.error(f"❌ Failed to generate LiveKit token: {str(e)}")
             return Response(
                 {'error': f'Failed to generate access token: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
