@@ -39,20 +39,20 @@ class ProjectDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 # ---------------------------------------------------------
-# 2. LiveKit Token Generation View (Enhanced & Smart) 🧠
+# 2. LiveKit Token Generation View (Corrected Logic) ✅
 # ---------------------------------------------------------
 
 class LiveKitTokenView(APIView):
     """
     Generates a secure JWT token for LiveKit room access.
-    Now includes 'Smart Project Handling' to prevent errors if no project exists.
+    Includes Smart Fallback logic using correct model fields (name instead of title).
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         user = request.user
 
-        # 1. Retrieve Configuration (Try settings first, fallback to os.environ)
+        # 1. Retrieve Configuration
         lk_api_key = getattr(settings, 'LIVEKIT_API_KEY', os.getenv('LIVEKIT_API_KEY'))
         lk_api_secret = getattr(settings, 'LIVEKIT_API_SECRET', os.getenv('LIVEKIT_API_SECRET'))
         lk_url = getattr(settings, 'LIVEKIT_URL', os.getenv('LIVEKIT_URL'))
@@ -81,7 +81,7 @@ class LiveKitTokenView(APIView):
                     logger.info(f"🆕 Creating default project for user {user.username}")
                     final_project = Project.objects.create(
                         owner=user,
-                        title="General Session",
+                        name="General Session",
                         description="Auto-generated workspace for voice sessions."
                     )
                 except Exception as e:
@@ -98,22 +98,20 @@ class LiveKitTokenView(APIView):
         # 3. Construct Token & Metadata
         # -----------------------------------------------------
 
-        # Identity Logic
         participant_identity = user.email or user.username or str(user.id)
         participant_name = user.username or "Commander"
-
-        # Unique Session ID (Fixes caching/zombie agents)
         session_id = int(time.time())
 
+        # اسم الغرفة
         room_name = f"nexus-{user.id}-{final_project.id}-{session_id}"
 
-        # The "Suitcase" (Metadata) - Now carries REAL DB ID
+        # Metadata (Updated field names)
         user_metadata = json.dumps({
             "user_id": str(user.id),
             "username": participant_name,
             "voice_id": target_voice,
-            "project_id": final_project.id,  # ✅ Real DB ID
-            "project_title": final_project.title,  # ✅ Bonus: Agent knows project name now
+            "project_id": final_project.id,
+            "project_name": final_project.name,
             "session_id": session_id
         })
 
@@ -130,7 +128,7 @@ class LiveKitTokenView(APIView):
 
             jwt_token = token.to_jwt()
 
-            logger.info(f"✅ Token generated for {user.username} (Room: {room_name}, Voice: {target_voice})")
+            logger.info(f"✅ Token generated for {user.username} (Room: {room_name})")
 
             return Response({
                 'token': jwt_token,
@@ -139,7 +137,7 @@ class LiveKitTokenView(APIView):
                 'room_name': room_name,
                 'project': {
                     'id': final_project.id,
-                    'title': final_project.title
+                    'name': final_project.name
                 }
             })
 
