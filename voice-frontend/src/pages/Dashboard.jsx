@@ -6,16 +6,22 @@ import axios from 'axios';
 import {
     Activity, Cpu, Globe, ArrowUpRight, ArrowDownRight,
     Terminal, Clock, Plus, Copy, BookOpen, ShieldCheck, Zap,
-    FileAudio, Calendar, MoreHorizontal, Loader2
+    FileAudio, Calendar, MoreHorizontal, Loader2, Mic // 👈 Added Mic Icon
 } from 'lucide-react';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 
+// 👇 Import the Voice Interface
+import NexusInterface from '../components/voice/NexusInterface';
+
 const Dashboard = () => {
     const { user } = useAuth();
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
+
+    // 👇 State for Voice Modal
+    const [isVoiceOpen, setIsVoiceOpen] = useState(false);
 
     // Dynamic User Name
     const displayUser = user?.email?.split('@')[0] || 'Operator';
@@ -24,7 +30,6 @@ const Dashboard = () => {
     useEffect(() => {
         const fetchProjects = async () => {
             try {
-                // We use the dynamic hostname (localhost or VM IP)
                 const API_URL = `http://${window.location.hostname}:8000/api/v1/projects/`;
                 const response = await axios.get(API_URL);
                 setProjects(response.data);
@@ -40,7 +45,7 @@ const Dashboard = () => {
         }
     }, [user]);
 
-    // Mock Data: Throughput (You can hook this to real analytics later)
+    // Mock Data: Throughput
     const trafficData = [
         { time: '10:00', requests: 120 }, { time: '10:05', requests: 180 },
         { time: '10:10', requests: 150 }, { time: '10:15', requests: 290 },
@@ -49,7 +54,7 @@ const Dashboard = () => {
     ];
 
     return (
-        <div className="flex min-h-screen bg-[#050505] selection:bg-indigo-500/30">
+        <div className="flex min-h-screen bg-[#050505] selection:bg-indigo-500/30 relative">
             <Sidebar />
             <main className="ml-64 flex-1 p-10 overflow-y-auto">
 
@@ -118,9 +123,8 @@ const Dashboard = () => {
                     </div>
                 </div>
 
-                {/* --- Bottom Row: Recent Projects (Replacing Logs) --- */}
+                {/* --- Bottom Row: Recent Projects --- */}
                 <div className="grid grid-cols-1 gap-6 animate-fade-in-up delay-300">
-
                     <div className="bg-[#0A0A0A] border border-white/10 rounded-3xl p-6 flex flex-col min-h-[300px]">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-sm font-bold text-white flex items-center gap-2">
@@ -184,11 +188,29 @@ const Dashboard = () => {
                 </div>
 
             </main>
+
+            {/* 🔥 NEXUS VOICE TRIGGER BUTTON 🔥 */}
+            <button
+                onClick={() => setIsVoiceOpen(true)}
+                className="fixed bottom-8 right-8 group flex items-center gap-3 pl-4 pr-2 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full shadow-[0_0_30px_-5px_rgba(79,70,229,0.5)] transition-all duration-300 hover:scale-105 hover:-translate-y-1 z-40 border border-white/10"
+            >
+                <span className="text-sm font-bold tracking-wide">Talk to Nexus</span>
+                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm group-hover:rotate-12 transition-transform">
+                    <Mic className="w-5 h-5" />
+                </div>
+            </button>
+
+            {/* 🔥 THE VOICE MODAL 🔥 */}
+            <NexusInterface
+                isOpen={isVoiceOpen}
+                onClose={() => setIsVoiceOpen(false)}
+            />
+
         </div>
     );
 };
 
-// --- Sub Components ---
+// --- Sub Components (unchanged) ---
 
 const QuickAction = ({ title, icon: Icon, shortcut, color }) => (
     <button className="bg-[#0A0A0A] border border-white/10 p-4 rounded-2xl flex items-center justify-between group hover:border-indigo-500/50 hover:bg-white/[0.02] transition-all">
