@@ -45,7 +45,7 @@ class ProjectDetailView(generics.RetrieveUpdateDestroyAPIView):
 class LiveKitTokenView(APIView):
     """
     Generates a secure JWT token for LiveKit room access.
-    Includes Smart Fallback logic using correct model fields (name instead of title).
+    Includes Smart Fallback logic and FULL permissions.
     """
     permission_classes = [permissions.IsAuthenticated]
 
@@ -105,7 +105,7 @@ class LiveKitTokenView(APIView):
         # اسم الغرفة
         room_name = f"nexus-{user.id}-{final_project.id}-{session_id}"
 
-        # Metadata (Updated field names)
+        # Metadata
         user_metadata = json.dumps({
             "user_id": str(user.id),
             "username": participant_name,
@@ -115,7 +115,7 @@ class LiveKitTokenView(APIView):
             "session_id": session_id
         })
 
-        # 4. Create LiveKit Token
+        # 4. Create LiveKit Token (With FULL PERMISSIONS) 🚀
         try:
             token = api.AccessToken(lk_api_key, lk_api_secret) \
                 .with_identity(participant_identity) \
@@ -124,6 +124,9 @@ class LiveKitTokenView(APIView):
                 .with_grants(api.VideoGrants(
                 room_join=True,
                 room=room_name,
+                can_publish=True,
+                can_subscribe=True,
+                can_publish_data=True
             ))
 
             jwt_token = token.to_jwt()
