@@ -3,6 +3,8 @@ import json
 import asyncio
 from dotenv import load_dotenv
 
+# 👇👇 Import the new Brain module (Make sure context.py is in the same folder)
+import context
 
 from livekit.agents import (
     AutoSubscribe,
@@ -36,18 +38,29 @@ except Exception as e:
 
 
 # ---------------------------------------------------------
-# 3. Helper: Prompt Builder
+# 3. Helper: Prompt Builder (Updated for Nexus Brain 🧠)
 # ---------------------------------------------------------
 def build_system_prompt(user_name: str, project_context: str = None) -> str:
-    base_prompt = (
-        f"You are Nexus, an advanced AI assistant talking to {user_name}. "
-        "You are concise, professional, and friendly. "
-        "Do not use markdown symbols (like * or #) in your speech. "
-        "Keep responses under 3 sentences unless asked for details."
+    # 1. Get the Core Personality from context.py
+    nexus_core = context.get_system_prompt()
+
+    # 2. Add Voice-Specific Constraints (Dynamic)
+    voice_constraints = (
+        f"\n\nSESSION CONTEXT:\n"
+        f"You are currently speaking with {user_name}.\n"
+        "Since this is a voice conversation:\n"
+        "- Keep responses concise (under 3 sentences) unless asked for details.\n"
+        "- Do NOT use markdown symbols (like * or #) as they are not spoken.\n"
+        "- Be friendly but maintain the professional persona defined above."
     )
+
+    # 3. Combine everything
+    final_prompt = nexus_core + voice_constraints
+
     if project_context:
-        base_prompt += f"\n\nCONTEXT:\n{project_context}\n"
-    return base_prompt
+        final_prompt += f"\n\nACTIVE PROJECT CONTEXT:\n{project_context}\n"
+
+    return final_prompt
 
 
 async def entrypoint(ctx: JobContext):
@@ -84,10 +97,9 @@ async def entrypoint(ctx: JobContext):
         llm=groq.LLM(model="llama-3.1-8b-instant"),
         tts=deepgram.TTS(model=target_model),
 
-
         chat_ctx=llm.ChatContext().append(
             role="system",
-            text=build_system_prompt(user_name)
+            text=build_system_prompt(user_name)  # 👈 Now using the new brain
         ),
     )
 
@@ -113,7 +125,7 @@ async def entrypoint(ctx: JobContext):
         logger.info(f"🚪 Room disconnected: {reason}")
 
     logger.info(f"🎙️ Agent active with voice: {target_model}")
-    await agent.say(f"Welcome back, {user_name}. Systems online.", allow_interruptions=True)
+    await agent.say(f"Welcome back, {user_name}. Nexus systems online.", allow_interruptions=True)
 
 
 async def request_fnc(req: JobRequest) -> None:
