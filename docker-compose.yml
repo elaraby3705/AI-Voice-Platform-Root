@@ -23,6 +23,9 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:-ai_voice_password}
     depends_on:
       - db
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     networks:
       - ai-voice-network
 
@@ -30,7 +33,6 @@ services:
   # Service 2: Frontend
   # --------
   frontend:
-    #  ./services/voice-frontend
     build:
       context: ./voice-frontend
       dockerfile: Dockerfile
@@ -40,7 +42,7 @@ services:
     ports:
       - "5173:5173"
     environment:
-      - VITE_API_URL=http://192.168.100.30:8000/api/v1
+      - VITE_API_URL=http://localhost:8000/api/v1
     depends_on:
       - backend
     networks:
@@ -78,8 +80,11 @@ services:
     env_file:
       - ./services/ai-worker/.env
     restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     networks:
-      - ai-voice-network      # ✅ Added this so it matches other services
+      - ai-voice-network
 
 # -------
 # Networks & Volumes Definition
