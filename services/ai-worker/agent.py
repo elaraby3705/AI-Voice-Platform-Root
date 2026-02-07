@@ -2,9 +2,9 @@ import logging
 import json
 import asyncio
 from dotenv import load_dotenv
-
-# 👇👇 Import the new Brain module (Make sure context.py is in the same folder)
 import context
+# 👇 NEW: Import the Tools module ("The Hands")
+from tools import ProjectManagerTools 
 
 from livekit.agents import (
     AutoSubscribe,
@@ -38,7 +38,7 @@ except Exception as e:
 
 
 # ---------------------------------------------------------
-# 3. Helper: Prompt Builder (Updated for Nexus Brain 🧠)
+# 3. Helper: Prompt Builder (Updated for Nexus Brain 🧠 + Hands 🛠️)
 # ---------------------------------------------------------
 def build_system_prompt(user_name: str, project_context: str = None) -> str:
     # 1. Get the Core Personality from context.py
@@ -51,7 +51,10 @@ def build_system_prompt(user_name: str, project_context: str = None) -> str:
         "Since this is a voice conversation:\n"
         "- Keep responses concise (under 3 sentences) unless asked for details.\n"
         "- Do NOT use markdown symbols (like * or #) as they are not spoken.\n"
-        "- Be friendly but maintain the professional persona defined above."
+        "- Be friendly but maintain the professional persona defined above.\n"
+        # 👇 NEW: Explicit instruction to use tools
+        "- You have REAL-TIME access to the database. If the user asks to create or list projects, "
+        "use the available tools immediately. Don't just talk about it, do it."
     )
 
     # 3. Combine everything
@@ -69,7 +72,7 @@ async def entrypoint(ctx: JobContext):
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
     participant = await ctx.wait_for_participant()
 
-    # Metadata Parsing
+    # Metadata Parsing (Preserved)
     selected_voice_alias = "sarah"
     user_name = "User"
     if participant.metadata:
@@ -80,7 +83,7 @@ async def entrypoint(ctx: JobContext):
         except Exception:
             pass
 
-    # Voice Mapping
+    # Voice Mapping (Preserved)
     deepgram_voices = {
         "sarah": "aura-asteria-en",
         "marcus": "aura-orion-en",
@@ -88,6 +91,10 @@ async def entrypoint(ctx: JobContext):
         "echo": "aura-arcas-en",
     }
     target_model = deepgram_voices.get(selected_voice_alias.lower().strip(), "aura-asteria-en")
+
+    # 👇 NEW: Initialize the Tools (The Hands)
+    # This creates the API client and prepares the functions for the agent
+    project_tools = ProjectManagerTools()
 
     # Initialize Agent
     agent = VoicePipelineAgent(
@@ -99,13 +106,17 @@ async def entrypoint(ctx: JobContext):
 
         chat_ctx=llm.ChatContext().append(
             role="system",
-            text=build_system_prompt(user_name)  # 👈 Now using the new brain
+            text=build_system_prompt(user_name) 
         ),
+
+        # 👇 NEW: Inject the tools into the agent context
+        # This allows the LLM to "see" and "call" the functions in tools.py
+        fnc_ctx=project_tools,
     )
 
     agent.start(ctx.room, participant)
 
-    # Event Handlers
+    # Event Handlers (Preserved - Crucial for Frontend Transcripts)
     @agent.on("agent_speech_committed")
     def on_agent_speech_committed(msg: llm.ChatMessage):
         asyncio.create_task(ctx.room.local_participant.publish_data(
@@ -123,9 +134,13 @@ async def entrypoint(ctx: JobContext):
     @ctx.room.on("disconnected")
     def on_room_disconnected(reason):
         logger.info(f"🚪 Room disconnected: {reason}")
+        # 👇 NEW: Clean up API client connection when room closes
+        # This prevents "unclosed connection" warnings in logs
+        if hasattr(project_tools, 'api'):
+             asyncio.create_task(project_tools.api.close())
 
     logger.info(f"🎙️ Agent active with voice: {target_model}")
-    await agent.say(f"Welcome back, {user_name}. Nexus systems online.", allow_interruptions=True)
+    await agent.say(f"Welcome back, {user_name}. Nexus systems online. I am ready to manage your projects.", allow_interruptions=True)
 
 
 async def request_fnc(req: JobRequest) -> None:
