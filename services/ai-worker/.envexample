@@ -5,3 +5,11 @@ OPENAI_API_KEY=sk-proj-your_key
 # Deepgram (The new Ears)
 DEEPGRAM_API_KEY=your_deepgram_key_here
 GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxxxxxx
+
+API_BASE_URL=http://backend:8000/api
+
+# using user admin to work on database
+# also make sure to create this user to grant'em  doing ops on database
+# 133 issue
+NEXUS_API_USERNAME=admin
+NEXUS_API_PASSWORD=admin
