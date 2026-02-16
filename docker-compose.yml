@@ -1,8 +1,18 @@
 version: '3.8'
 
 services:
+
+  # Redis Service (Message Broker)
+  redis:
+    image: redis:alpine
+    container_name: nexus_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - ai-voice-network
+    restart: always
   # -------
-  # Service 1: Core API (Backend)
+  # Service : Core API (Backend)
   # -------
   backend:
     build:
@@ -21,8 +31,10 @@ services:
       - DB_NAME=${DB_NAME:-ai_voice_db}
       - DB_USER=${DB_USER:-ai_voice_user}
       - DB_PASSWORD=${DB_PASSWORD:-ai_voice_password}
+      - REDIS_URL=redis://redis:6379/0
     depends_on:
       - db
+      - redis
     dns:
       - 8.8.8.8
       - 8.8.4.4
@@ -86,14 +98,7 @@ services:
     networks:
       - ai-voice-network
 
-# ✅ 1. Redis Service (In-memory Data Store)
-  redis:
-    image: redis:alpine
-    container_name: nexus_redis
-    ports:
-      - "6379:6379"
-    networks:
-      - ai-voice-network
+
 
   # ✅ 2. New FastAPI Service
   realtime-api:
