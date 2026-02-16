@@ -101,7 +101,7 @@ services:
       context: ./services/realtime-api
     container_name: ai_voice_realtime
     ports:
-      - "8001:8001"
+      - "8002:8001"
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
