@@ -1,4 +1,3 @@
-# signals.py
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from .models import Project
@@ -7,34 +6,30 @@ import json
 import os
 
 # Connect to Redis
-# We retrieve the connection URL from environment variables.
-# If not set, it defaults to the internal Docker service alias 'redis'.
 redis_client = redis.Redis.from_url(os.getenv("REDIS_URL", "redis://redis:6379/0"))
 
 
 @receiver(post_save, sender=Project)
 def publish_project_created(sender, instance, created, **kwargs):
     """
-    Triggered automatically after a Project model is saved to the database.
-    If a new project is created, it serializes the data and publishes it to Redis.
+    Triggers when a Project is created.
     """
     if created:
-        print(f"🚀 Signal Triggered: Project '{instance.title}' created.")
+        print(f"🚀 Signal Triggered: Project '{instance.name}' created.")
 
-        # 1. Prepare the payload (Serialize data for the frontend)
+        # Prepare the payload
         payload = {
             "type": "PROJECT_CREATED",
             "data": {
                 "id": instance.id,
-                "title": instance.title,
+                "name": instance.name,
                 "description": instance.description,
-                "status": instance.status,
-                # Convert datetime objects to string format for JSON compatibility
-                "created_at": str(instance.created_at) if hasattr(instance, 'created_at') else ""
+                "owner_id": instance.owner.id,
+                "created_at": instance.created_at.isoformat()
             }
         }
 
-        # 2. Publish to Redis Channel 'events:projects'
+        # Publish to Redis
         try:
             redis_client.publish("events:projects", json.dumps(payload))
             print("✅ Message published to Redis channel 'events:projects'")
