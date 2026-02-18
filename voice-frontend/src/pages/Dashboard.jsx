@@ -5,37 +5,67 @@ import { Link } from 'react-router-dom';
 import {
     Activity, Cpu, ArrowUpRight, ArrowDownRight,
     Clock, Plus, Copy, BookOpen, ShieldCheck, Zap,
-    FileAudio, Calendar, Loader2, Mic
+    FileAudio, Calendar, Loader2, Mic, Wifi, WifiOff
 } from 'lucide-react';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 
-// 👇 IMPORTANT: Import the secure 'api' instance instead of standard 'axios'
+// 👇 IMPORTANT: Import the secure 'api' instance
 import api from '../api/axios';
 import NexusInterface from '../components/voice/NexusInterface';
+
+// 👇 NEW: Import the Real-Time Hook
+import { useRealTimeProjects } from '../hooks/useRealTimeProjects';
 
 const Dashboard = () => {
     const { user } = useAuth();
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    // 👇 NEW: Notification State
+    const [notification, setNotification] = useState(null);
+
     // Voice Modal State
     const [isVoiceOpen, setIsVoiceOpen] = useState(false);
 
     const displayUser = user?.email?.split('@')[0] || 'Operator';
 
-    // 1. Fetch Projects (Now Authenticated!)
+    // ----------------------------------------------------
+    // 🔌 1. REAL-TIME WEBSOCKET INTEGRATION
+    // ----------------------------------------------------
+    const { connectionStatus } = useRealTimeProjects((newProject) => {
+        console.log("⚡ Real-time update received:", newProject);
+
+        // A. Trigger Notification
+        setNotification(`🚀 New Project Created: ${newProject.name || newProject.title}`);
+
+        // Clear notification after 5 seconds
+        setTimeout(() => setNotification(null), 5000);
+
+        // B. Update Projects List Instantly (Optimistic UI)
+        setProjects((prevProjects) => {
+            // Ensure data structure matches what the UI expects (mapping name to title if needed)
+            const formattedProject = {
+                ...newProject,
+                title: newProject.name || newProject.title, // Handle naming mismatch safely
+                created_at_formatted: new Date().toISOString().split('T')[0], // Quick formatting for immediate view
+                voice_id: newProject.voice_id || "Voice-001" // Fallback if missing
+            };
+            return [formattedProject, ...prevProjects];
+        });
+    });
+
+    // ----------------------------------------------------
+    // 2. Fetch Initial Projects
+    // ----------------------------------------------------
     useEffect(() => {
         const fetchProjects = async () => {
             try {
-                // 👇 CLEAN CODE: No more hardcoded http://localhost...
-                // The 'api' instance handles the Base URL and the Token automatically.
                 const response = await api.get('/projects/');
                 setProjects(response.data);
             } catch (error) {
                 console.error("Failed to fetch projects:", error);
-                // Optional: setProjects([]) if error to prevent crash
             } finally {
                 setLoading(false);
             }
@@ -57,7 +87,20 @@ const Dashboard = () => {
     return (
         <div className="flex min-h-screen bg-[#050505] selection:bg-indigo-500/30 relative">
             <Sidebar />
-            <main className="ml-64 flex-1 p-10 overflow-y-auto">
+            <main className="ml-64 flex-1 p-10 overflow-y-auto relative">
+
+                {/* 🔥 LIVE NOTIFICATION TOAST 🔥 */}
+                {notification && (
+                    <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-50 animate-fade-in-down">
+                        <div className="bg-indigo-600 text-white px-6 py-3 rounded-full shadow-lg shadow-indigo-500/30 flex items-center gap-3 border border-indigo-400/30">
+                            <span className="relative flex h-3 w-3">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
+                            </span>
+                            <span className="font-bold text-sm tracking-wide">{notification}</span>
+                        </div>
+                    </div>
+                )}
 
                 {/* --- Header --- */}
                 <div className="mb-10 flex justify-between items-end animate-fade-in-up">
@@ -65,12 +108,26 @@ const Dashboard = () => {
                         <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">System Overview</h1>
                         <p className="text-slate-400 text-sm">Welcome back, <span className="text-white font-medium">{displayUser}</span>.</p>
                     </div>
-                    <div className="flex items-center gap-3 bg-white/5 border border-white/5 rounded-full px-4 py-1.5 backdrop-blur-md">
+
+                    {/* 👇 UPDATED: Dynamic Status Badge */}
+                    <div className={`flex items-center gap-3 border rounded-full px-4 py-1.5 backdrop-blur-md transition-colors duration-500 ${
+                        connectionStatus === 'Open'
+                            ? 'bg-emerald-500/5 border-emerald-500/20'
+                            : 'bg-red-500/5 border-red-500/20'
+                    }`}>
                         <div className="relative flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                          <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                              connectionStatus === 'Open' ? 'bg-emerald-400' : 'bg-red-400'
+                          }`}></span>
+                          <span className={`relative inline-flex rounded-full h-2 w-2 ${
+                              connectionStatus === 'Open' ? 'bg-emerald-500' : 'bg-red-500'
+                          }`}></span>
                         </div>
-                        <span className="text-xs font-medium text-slate-300">System Online</span>
+                        <span className={`text-xs font-medium ${
+                             connectionStatus === 'Open' ? 'text-emerald-400' : 'text-red-400'
+                        }`}>
+                            {connectionStatus === 'Open' ? 'System Online' : 'Connecting...'}
+                        </span>
                         <div className="h-3 w-px bg-white/10 mx-1"></div>
                         <span className="text-xs font-mono text-slate-500">v2.4.0</span>
                     </div>
@@ -116,7 +173,7 @@ const Dashboard = () => {
                     {/* KPI Cards */}
                     <div className="col-span-1 space-y-4">
                         <KpiCard title="API Latency" value="42ms" change="-12%" trend="down" icon={Clock} color="text-emerald-400" />
-                        <KpiCard title="Total Projects" value={projects.length} change="Just now" trend="neutral" icon={Zap} color="text-indigo-400" />
+                        <KpiCard title="Total Projects" value={projects.length} change="Live" trend="neutral" icon={Zap} color="text-indigo-400" />
                         <KpiCard title="Active Workers" value="16/24" change="Idle" trend="neutral" icon={Cpu} color="text-yellow-400" />
                     </div>
                 </div>
@@ -147,8 +204,9 @@ const Dashboard = () => {
                                         </tr>
                                     </thead>
                                     <tbody className="text-xs">
-                                        {projects.map((project) => (
-                                            <tr key={project.id} className="group hover:bg-white/[0.02] transition-colors border-b border-white/5 last:border-0">
+                                        {projects.map((project, index) => (
+                                            // Added a slight animation to new items if they are the first in the list
+                                            <tr key={project.id || index} className={`group hover:bg-white/[0.02] transition-colors border-b border-white/5 last:border-0 ${index === 0 ? 'animate-fade-in' : ''}`}>
                                                 <td className="py-3 pl-2 font-medium text-white flex items-center gap-3">
                                                     <div className="w-8 h-8 rounded bg-indigo-500/10 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-500 group-hover:text-white transition-all">
                                                         <FileAudio className="w-4 h-4" />
