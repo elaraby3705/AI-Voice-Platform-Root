@@ -49,7 +49,7 @@ INSTALLED_APPS = [
     # Local Project Apps
     'accounts.apps.AccountsConfig',      # Users & Auth
     'core.apps.CoreConfig',              # General Utils
-    'projects.apps.ProjectsConfig',      # Project Management
+    'projects.apps.ProjectsConfig',     # Project Management
     'voice_sessions.apps.VoiceSessionsConfig', # AI Voice Logic
 ]
 
