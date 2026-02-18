@@ -104,9 +104,10 @@ services:
   realtime-api:
     build:
       context: ./services/realtime-api
+    command: uvicorn main:app --host 0.0.0.0 --port 8002 --reload
     container_name: ai_voice_realtime
     ports:
-      - "8002:8001"
+      - "8002:8002"
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379

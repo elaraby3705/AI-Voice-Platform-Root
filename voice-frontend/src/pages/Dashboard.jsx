@@ -5,28 +5,26 @@ import { Link } from 'react-router-dom';
 import {
     Activity, Cpu, ArrowUpRight, ArrowDownRight,
     Clock, Plus, Copy, BookOpen, ShieldCheck, Zap,
-    FileAudio, Calendar, Loader2, Mic, Wifi, WifiOff
+    FileAudio, Calendar, Loader2, Mic
 } from 'lucide-react';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 
-// 👇 IMPORTANT: Import the secure 'api' instance
+// 👇 Secure API Instance
 import api from '../api/axios';
 import NexusInterface from '../components/voice/NexusInterface';
 
-// 👇 NEW: Import the Real-Time Hook
+// 👇 Real-Time Hook
 import { useRealTimeProjects } from '../hooks/useRealTimeProjects';
 
 const Dashboard = () => {
-    const { user } = useAuth();
+    // 1️⃣ Fix: Get 'loading' state from Auth to prevent race conditions on refresh
+    const { user, loading: authLoading } = useAuth();
+
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
-
-    // 👇 NEW: Notification State
     const [notification, setNotification] = useState(null);
-
-    // Voice Modal State
     const [isVoiceOpen, setIsVoiceOpen] = useState(false);
 
     const displayUser = user?.email?.split('@')[0] || 'Operator';
@@ -39,27 +37,30 @@ const Dashboard = () => {
 
         // A. Trigger Notification
         setNotification(`🚀 New Project Created: ${newProject.name || newProject.title}`);
-
-        // Clear notification after 5 seconds
         setTimeout(() => setNotification(null), 5000);
 
         // B. Update Projects List Instantly (Optimistic UI)
         setProjects((prevProjects) => {
-            // Ensure data structure matches what the UI expects (mapping name to title if needed)
+            // Prevent duplicates if backend sends the same event twice
+            if (prevProjects.some(p => p.id === newProject.id)) return prevProjects;
+
             const formattedProject = {
                 ...newProject,
-                title: newProject.name || newProject.title, // Handle naming mismatch safely
-                created_at_formatted: new Date().toISOString().split('T')[0], // Quick formatting for immediate view
-                voice_id: newProject.voice_id || "Voice-001" // Fallback if missing
+                title: newProject.name || newProject.title,
+                created_at_formatted: new Date().toISOString().split('T')[0],
+                voice_id: newProject.voice_id || "Voice-001"
             };
             return [formattedProject, ...prevProjects];
         });
     });
 
     // ----------------------------------------------------
-    // 2. Fetch Initial Projects
+    // 2. Fetch Initial Projects (Fixed for Refresh)
     // ----------------------------------------------------
     useEffect(() => {
+        // 🛑 CRITICAL FIX: Don't fetch if Auth is still loading or User is null
+        if (authLoading || !user) return;
+
         const fetchProjects = async () => {
             try {
                 const response = await api.get('/projects/');
@@ -71,10 +72,8 @@ const Dashboard = () => {
             }
         };
 
-        if (user) {
-            fetchProjects();
-        }
-    }, [user]);
+        fetchProjects();
+    }, [user, authLoading]); // 👈 Re-run when Auth finishes loading
 
     // Mock Data for Charts
     const trafficData = [
@@ -109,7 +108,7 @@ const Dashboard = () => {
                         <p className="text-slate-400 text-sm">Welcome back, <span className="text-white font-medium">{displayUser}</span>.</p>
                     </div>
 
-                    {/* 👇 UPDATED: Dynamic Status Badge */}
+                    {/* Dynamic Status Badge */}
                     <div className={`flex items-center gap-3 border rounded-full px-4 py-1.5 backdrop-blur-md transition-colors duration-500 ${
                         connectionStatus === 'Open'
                             ? 'bg-emerald-500/5 border-emerald-500/20'
@@ -188,7 +187,7 @@ const Dashboard = () => {
                             <Link to="/projects" className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">View All</Link>
                         </div>
 
-                        {loading ? (
+                        {loading || authLoading ? (
                             <div className="flex-1 flex items-center justify-center text-slate-500">
                                 <Loader2 className="w-6 h-6 animate-spin" />
                             </div>
@@ -205,19 +204,18 @@ const Dashboard = () => {
                                     </thead>
                                     <tbody className="text-xs">
                                         {projects.map((project, index) => (
-                                            // Added a slight animation to new items if they are the first in the list
                                             <tr key={project.id || index} className={`group hover:bg-white/[0.02] transition-colors border-b border-white/5 last:border-0 ${index === 0 ? 'animate-fade-in' : ''}`}>
                                                 <td className="py-3 pl-2 font-medium text-white flex items-center gap-3">
                                                     <div className="w-8 h-8 rounded bg-indigo-500/10 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-500 group-hover:text-white transition-all">
                                                         <FileAudio className="w-4 h-4" />
                                                     </div>
-                                                    {project.title}
+                                                    {project.title || project.name}
                                                 </td>
                                                 <td className="py-3 text-slate-400">{project.voice_id}</td>
                                                 <td className="py-3 text-slate-500 font-mono">
                                                     <div className="flex items-center gap-1">
                                                         <Calendar className="w-3 h-3" />
-                                                        {project.created_at_formatted?.split(' ')[0]}
+                                                        {project.created_at_formatted?.split(' ')[0] || "Just now"}
                                                     </div>
                                                 </td>
                                                 <td className="py-3 text-right">
@@ -245,7 +243,7 @@ const Dashboard = () => {
 
             </main>
 
-            {/* 🔥 Voice Trigger Button 🔥 */}
+            {/* Voice Trigger Button */}
             <button
                 onClick={() => setIsVoiceOpen(true)}
                 className="fixed bottom-8 right-8 group flex items-center gap-3 pl-4 pr-2 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full shadow-[0_0_30px_-5px_rgba(79,70,229,0.5)] transition-all duration-300 hover:scale-105 hover:-translate-y-1 z-40 border border-white/10"
