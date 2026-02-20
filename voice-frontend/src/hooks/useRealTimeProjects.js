@@ -1,41 +1,42 @@
 /**
- * 🔌 Real-Time Projects Hook
- * ---------------------------
- * This hook connects to the Backend WebSocket to receive live updates.
- *
- * 📦 DEPENDENCY REQUIRED:
- * You must install 'react-use-websocket' inside the container:
- * $ docker exec -it nexus_frontend npm install react-use-websocket
- *
- * 🧪 HOW TO TEST:
- * 1. Open the Dashboard in your browser.
- * 2. Open a separate tab (Incognito) or use Django Admin.
- * 3. Create a new project.
- * 4. You should see a Toast/Alert instantly on the Dashboard without refreshing.
+ * 🔌 Real-Time Projects Hook (Production Ready)
+ * -------------------------------------------
+ * This hook establishes a WebSocket connection via the Vite Proxy.
+ * It ensures stability when running in Docker/VM environments by 
+ * tunneling through the frontend port (5173) to the real-time API (8002).
  */
 
 import { useEffect } from 'react';
 import useWebSocket, { ReadyState } from 'react-use-websocket';
 
-// 🛑 The Magic Fix: Automatically extract the IP or domain from the browser
-const WS_DOMAIN = window.location.hostname; 
-
-// This dynamically adapts whether you are using localhost or a local network IP (e.g., 192.168.x.x)
-const SOCKET_URL = `ws://${WS_DOMAIN}:8002/ws/projects`;
+/**
+ * 🛠️ CONFIGURATION:
+ * We use window.location.host to capture the current frontend domain/port (e.g., localhost:5173).
+ * The path '/ws' is intercepted by the Vite proxy configured in vite.config.js.
+ */
+const WS_DOMAIN = window.location.host; 
+const SOCKET_URL = `ws://${WS_DOMAIN}/ws/projects/`;
 
 export const useRealTimeProjects = (onProjectCreated) => {
   const { lastJsonMessage, readyState } = useWebSocket(SOCKET_URL, {
-    shouldReconnect: (closeEvent) => true, // Auto-reconnect if server restarts
-    reconnectAttempts: 10,
-    reconnectInterval: 3000,
+    /** 🔄 RECONNECTION LOGIC:
+     * Ensures the client automatically recovers if the backend container restarts.
+     */
+    shouldReconnect: (closeEvent) => true,
+    reconnectAttempts: 20,
+    reconnectInterval: 5000,
     
-    // 👇 Tracking Radar (for visual debugging in the browser's F12 Console)
-    onOpen: () => console.log(`🟢 [WebSocket] Connected to ${SOCKET_URL} Successfully!`),
-    onClose: (event) => console.log("🔴 [WebSocket] Disconnected:", event.code, event.reason),
-    onError: (event) => console.error(`❌ [WebSocket] Error! Cannot connect to ${SOCKET_URL}`),
+    /** 📡 EVENT HANDLERS:
+     * Used for real-time monitoring and debugging in the developer console.
+     */
+    onOpen: () => console.log(`🟢 [WebSocket] Tunnel Established via Proxy: ${SOCKET_URL}`),
+    onClose: (event) => console.log("🔴 [WebSocket] Connection Terminated:", event.code, event.reason),
+    onError: (event) => console.error(`❌ [WebSocket] Handshake Failed at ${SOCKET_URL}`),
   });
 
-  // Debugging Connection Status
+  /** 📊 CONNECTION STATUS MAP:
+   * Maps numerical readyStates to human-readable strings for the Dashboard UI.
+   */
   const connectionStatus = {
     [ReadyState.CONNECTING]: 'Connecting',
     [ReadyState.OPEN]: 'Open',
@@ -44,11 +45,14 @@ export const useRealTimeProjects = (onProjectCreated) => {
     [ReadyState.UNINSTANTIATED]: 'Uninstantiated',
   }[readyState];
 
+  /** 📥 MESSAGE PROCESSING:
+   * Listens for incoming JSON frames and triggers callbacks for the UI.
+   */
   useEffect(() => {
     if (lastJsonMessage !== null) {
-      console.log('📩 [WebSocket] Message Received:', lastJsonMessage);
+      console.log('📩 [WebSocket] Frame Received:', lastJsonMessage);
 
-      // Check if the message is about a new project
+      // Validate event type and trigger the update callback
       if (lastJsonMessage.type === 'PROJECT_CREATED' && onProjectCreated) {
         onProjectCreated(lastJsonMessage.data);
       }
