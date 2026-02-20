@@ -43,3 +43,20 @@ async def entrypoint(ctx: JobContext):
 
 if __name__ == "__main__":
     cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+
+# Ensure these event handlers are inside the entrypoint function
+    @agent.on("agent_speech_committed")
+    def on_agent_speech_committed(msg: llm.ChatMessage):
+        # This sends the AI's words to the frontend via LiveKit Data Channel
+        asyncio.create_task(ctx.room.local_participant.publish_data(
+            json.dumps({"type": "transcript", "sender": "ai", "text": msg.content}).encode("utf-8"),
+            reliable=True
+        ))
+
+    @agent.on("user_speech_committed")
+    def on_user_speech_committed(msg: llm.ChatMessage):
+        # This sends YOUR words to the frontend
+        asyncio.create_task(ctx.room.local_participant.publish_data(
+            json.dumps({"type": "transcript", "sender": "user", "text": msg.content}).encode("utf-8"),
+            reliable=True
+        ))
