@@ -2,23 +2,23 @@ import { useEffect } from 'react';
 import useWebSocket, { ReadyState } from 'react-use-websocket';
 
 /**
- * 🛰️ CONFIGURATION: 
- * Using window.location.host to dynamically use localhost:5173.
- * Path MUST start with /ws to trigger the Vite Proxy to port 8002.
+ * 📡 THE BRIDGE FIX:
+ * We connect to the FRONTEND port (5173) but via the '/ws/' path.
+ * This triggers the Vite Proxy to securely tunnel the data to port 8002.
  */
-const WS_DOMAIN = window.location.host; 
-const SOCKET_URL = `ws://${WS_DOMAIN}/ws/projects/`; // Added /ws prefix and trailing slash
+const WS_DOMAIN = window.location.host; // This is 'localhost:5173'
+const SOCKET_URL = `ws://${WS_DOMAIN}/ws/projects/`; // 👈 MUST start with /ws/
 
 export const useRealTimeProjects = (onProjectCreated) => {
   const { lastJsonMessage, readyState } = useWebSocket(SOCKET_URL, {
-    shouldReconnect: (closeEvent) => true,
-    reconnectAttempts: 20, // Increased for better stability in VM
+    shouldReconnect: () => true,
+    reconnectAttempts: 20,
     reconnectInterval: 5000,
     
-    // 🔍 Debugging: Monitor why it goes to 'unknown'
-    onOpen: () => console.log(`🟢 [WebSocket] Connected via Proxy to: ${SOCKET_URL}`),
-    onClose: (event) => console.log("🔴 [WebSocket] Disconnected:", event.code, event.reason),
-    onError: (event) => console.error("❌ [WebSocket] Connection Error"),
+    // Debugging Console - Watch for the "🟢"
+    onOpen: () => console.log("🟢 [SYSTEM] Tunnel established via Vite Proxy!"),
+    onClose: () => console.log("🔴 [SYSTEM] Tunnel closed. Retrying..."),
+    onError: (err) => console.error("❌ [SYSTEM] Connection failed at:", SOCKET_URL)
   });
 
   const connectionStatus = {
@@ -31,8 +31,7 @@ export const useRealTimeProjects = (onProjectCreated) => {
 
   useEffect(() => {
     if (lastJsonMessage !== null) {
-      console.log('📩 [WebSocket] Message Received:', lastJsonMessage);
-
+      console.log('📩 [DATA] Message received from Redis:', lastJsonMessage);
       if (lastJsonMessage.type === 'PROJECT_CREATED' && onProjectCreated) {
         onProjectCreated(lastJsonMessage.data);
       }
