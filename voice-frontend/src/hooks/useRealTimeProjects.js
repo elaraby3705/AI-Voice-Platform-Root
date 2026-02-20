@@ -17,14 +17,22 @@
 import { useEffect } from 'react';
 import useWebSocket, { ReadyState } from 'react-use-websocket';
 
-// ⚠️ Configuration: Ensure this matches your FastAPI port (8002)
-const SOCKET_URL = 'ws://localhost:8002/ws/projects';
+// 🛑 The Magic Fix: Automatically extract the IP or domain from the browser
+const WS_DOMAIN = window.location.hostname; 
+
+// This dynamically adapts whether you are using localhost or a local network IP (e.g., 192.168.x.x)
+const SOCKET_URL = `ws://${WS_DOMAIN}:8002/ws/projects`;
 
 export const useRealTimeProjects = (onProjectCreated) => {
   const { lastJsonMessage, readyState } = useWebSocket(SOCKET_URL, {
     shouldReconnect: (closeEvent) => true, // Auto-reconnect if server restarts
     reconnectAttempts: 10,
     reconnectInterval: 3000,
+    
+    // 👇 Tracking Radar (for visual debugging in the browser's F12 Console)
+    onOpen: () => console.log(`🟢 [WebSocket] Connected to ${SOCKET_URL} Successfully!`),
+    onClose: (event) => console.log("🔴 [WebSocket] Disconnected:", event.code, event.reason),
+    onError: (event) => console.error(`❌ [WebSocket] Error! Cannot connect to ${SOCKET_URL}`),
   });
 
   // Debugging Connection Status
