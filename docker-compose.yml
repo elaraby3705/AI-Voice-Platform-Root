@@ -2,7 +2,9 @@ version: '3.8'
 
 services:
 
-  # Redis Service (Message Broker)
+  # ----------------------------------------
+  # Service 1: Redis (Message Broker)
+  # ----------------------------------------
   redis:
     image: redis:alpine
     container_name: nexus_redis
@@ -11,9 +13,10 @@ services:
     networks:
       - ai-voice-network
     restart: always
-  # -------
-  # Service : Core API (Backend)
-  # -------
+
+  # ----------------------------------------
+  # Service 2: Core API (Backend)
+  # ----------------------------------------
   backend:
     build:
       context: ./services/core-api
@@ -41,28 +44,35 @@ services:
     networks:
       - ai-voice-network
 
-  # -------
-  # Service 2: Frontend
-  # --------
+  # ----------------------------------------
+  # Service 3: Frontend (React / Vite)
+  # ----------------------------------------
   frontend:
     build:
       context: ./voice-frontend
       dockerfile: Dockerfile
     container_name: ai_voice_frontend
     volumes:
-      - ./voice-frontend/src:/app/src
+      # Mount the entire frontend directory to detect config/package changes
+      - ./voice-frontend:/app
+      # Protect node_modules to avoid overwriting container dependencies
+      - /app/node_modules
     ports:
       - "5173:5173"
     environment:
       - VITE_API_URL=http://localhost:8000/api/v1
+      # Enable polling for hot-reload on Virtual Machines (OSBoxes/Ubuntu)
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+      - VITE_WATCH_USEPOLLING=true
     depends_on:
       - backend
     networks:
       - ai-voice-network
 
-  # ------
-  # Service 3: Database
-  # -------
+  # ----------------------------------------
+  # Service 4: Database (PostgreSQL)
+  # ----------------------------------------
   db:
     image: postgres:15-alpine
     container_name: ai_voice_db_psql
@@ -79,9 +89,9 @@ services:
     networks:
       - ai-voice-network
 
-  # ------
-  # Service 4: AI Agent (The Brain) 🧠
-  # -------
+  # ----------------------------------------
+  # Service 5: AI Agent (The Brain) 🧠
+  # ----------------------------------------
   ai_agent:
     build:
       context: ./services/ai-worker
@@ -98,9 +108,9 @@ services:
     networks:
       - ai-voice-network
 
-
-
-  # ✅ 2. New FastAPI Service
+  # ----------------------------------------
+  # Service 6: Real-Time API (FastAPI)
+  # ----------------------------------------
   realtime-api:
     build:
       context: ./services/realtime-api
@@ -116,9 +126,10 @@ services:
       - redis
     networks:
       - ai-voice-network
-# -------
+
+# ----------------------------------------
 # Networks & Volumes Definition
-# -------
+# ----------------------------------------
 networks:
   ai-voice-network:
     driver: bridge
