@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import Sidebar from '../components/Sidebar';
-import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { useRealTimeProjects } from '../hooks/useRealTimeProjects';
+import api from '../api/axios';
+import NexusInterface from '../components/voice/NexusInterface';
 import {
     Activity, Cpu, ArrowUpRight, ArrowDownRight,
     Clock, Plus, Copy, BookOpen, ShieldCheck, Zap,
@@ -11,17 +13,16 @@ import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 
-// 👇 Secure API Instance
-import api from '../api/axios';
-import NexusInterface from '../components/voice/NexusInterface';
-
-// 👇 Real-Time Hook
-import { useRealTimeProjects } from '../hooks/useRealTimeProjects';
-
 const Dashboard = () => {
-    // 1️⃣ Fix: Get 'loading' state from Auth to prevent race conditions on refresh
-    const { user, loading: authLoading } = useAuth();
+    // ==========================================
+    // 🔍 DEBUG RADAR: Verify this file is rendering
+    // ==========================================
+    console.log("🚀🚀🚀 [DEBUG] Dashboard.jsx is rendering! You are in the right file! 🚀🚀🚀");
 
+    // ==========================================
+    // 1. State & Context
+    // ==========================================
+    const { user, loading: authLoading } = useAuth();
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
     const [notification, setNotification] = useState(null);
@@ -29,19 +30,19 @@ const Dashboard = () => {
 
     const displayUser = user?.email?.split('@')[0] || 'Operator';
 
-    // ----------------------------------------------------
-    // 🔌 1. REAL-TIME WEBSOCKET INTEGRATION
-    // ----------------------------------------------------
+    // ==========================================
+    // 2. Real-Time WebSocket Integration
+    // ==========================================
     const { connectionStatus } = useRealTimeProjects((newProject) => {
-        console.log("⚡ Real-time update received:", newProject);
+        console.log("⚡ [Dashboard] Real-time update received:", newProject);
 
-        // A. Trigger Notification
+        // Trigger live notification
         setNotification(`🚀 New Project Created: ${newProject.name || newProject.title}`);
         setTimeout(() => setNotification(null), 5000);
 
-        // B. Update Projects List Instantly (Optimistic UI)
+        // Update projects list instantly (Optimistic UI)
         setProjects((prevProjects) => {
-            // Prevent duplicates if backend sends the same event twice
+            // Prevent duplicate entries if the backend sends the event twice
             if (prevProjects.some(p => p.id === newProject.id)) return prevProjects;
 
             const formattedProject = {
@@ -54,11 +55,11 @@ const Dashboard = () => {
         });
     });
 
-    // ----------------------------------------------------
-    // 2. Fetch Initial Projects (Fixed for Refresh)
-    // ----------------------------------------------------
+    // ==========================================
+    // 3. Fetch Initial Data (Protected Route Logic)
+    // ==========================================
     useEffect(() => {
-        // 🛑 CRITICAL FIX: Don't fetch if Auth is still loading or User is null
+        // Guard clause: Wait until authentication is resolved
         if (authLoading || !user) return;
 
         const fetchProjects = async () => {
@@ -66,16 +67,18 @@ const Dashboard = () => {
                 const response = await api.get('/projects/');
                 setProjects(response.data);
             } catch (error) {
-                console.error("Failed to fetch projects:", error);
+                console.error("❌ [Dashboard] Failed to fetch projects:", error);
             } finally {
                 setLoading(false);
             }
         };
 
         fetchProjects();
-    }, [user, authLoading]); // 👈 Re-run when Auth finishes loading
+    }, [user, authLoading]);
 
-    // Mock Data for Charts
+    // ==========================================
+    // 4. Mock Data for Analytics
+    // ==========================================
     const trafficData = [
         { time: '10:00', requests: 120 }, { time: '10:05', requests: 180 },
         { time: '10:10', requests: 150 }, { time: '10:15', requests: 290 },
@@ -83,12 +86,15 @@ const Dashboard = () => {
         { time: '10:30', requests: 420 },
     ];
 
+    // ==========================================
+    // 5. Render Component
+    // ==========================================
     return (
         <div className="flex min-h-screen bg-[#050505] selection:bg-indigo-500/30 relative">
             <Sidebar />
             <main className="ml-64 flex-1 p-10 overflow-y-auto relative">
 
-                {/* 🔥 LIVE NOTIFICATION TOAST 🔥 */}
+                {/* --- Live Notification Toast --- */}
                 {notification && (
                     <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-50 animate-fade-in-down">
                         <div className="bg-indigo-600 text-white px-6 py-3 rounded-full shadow-lg shadow-indigo-500/30 flex items-center gap-3 border border-indigo-400/30">
@@ -101,14 +107,14 @@ const Dashboard = () => {
                     </div>
                 )}
 
-                {/* --- Header --- */}
+                {/* --- Header Section --- */}
                 <div className="mb-10 flex justify-between items-end animate-fade-in-up">
                     <div>
                         <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">System Overview</h1>
                         <p className="text-slate-400 text-sm">Welcome back, <span className="text-white font-medium">{displayUser}</span>.</p>
                     </div>
 
-                    {/* Dynamic Status Badge */}
+                    {/* --- Dynamic WebSocket Status Badge --- */}
                     <div className={`flex items-center gap-3 border rounded-full px-4 py-1.5 backdrop-blur-md transition-colors duration-500 ${
                         connectionStatus === 'Open'
                             ? 'bg-emerald-500/5 border-emerald-500/20'
@@ -132,7 +138,7 @@ const Dashboard = () => {
                     </div>
                 </div>
 
-                {/* --- Quick Actions --- */}
+                {/* --- Quick Actions Grid --- */}
                 <div className="grid grid-cols-4 gap-4 mb-8 animate-fade-in-up delay-100">
                     <QuickAction title="New Synthesis" icon={Plus} shortcut="N" color="indigo" />
                     <QuickAction title="Clone Voice" icon={Copy} shortcut="C" color="purple" />
@@ -140,9 +146,10 @@ const Dashboard = () => {
                     <QuickAction title="Access Tokens" icon={ShieldCheck} shortcut="T" color="slate" />
                 </div>
 
-                {/* --- Analytics Grid --- */}
+                {/* --- Analytics & KPIs Grid --- */}
                 <div className="grid grid-cols-3 gap-6 mb-8 animate-fade-in-up delay-200">
-                    {/* Traffic Chart */}
+                    
+                    {/* Traffic Area Chart */}
                     <div className="col-span-2 bg-[#0A0A0A] border border-white/10 rounded-3xl p-6 relative overflow-hidden group">
                         <div className="flex justify-between items-center mb-6 relative z-10">
                             <h3 className="text-sm font-bold text-white flex items-center gap-2">
@@ -177,7 +184,7 @@ const Dashboard = () => {
                     </div>
                 </div>
 
-                {/* --- Recent Projects --- */}
+                {/* --- Recent Projects Table --- */}
                 <div className="grid grid-cols-1 gap-6 animate-fade-in-up delay-300">
                     <div className="bg-[#0A0A0A] border border-white/10 rounded-3xl p-6 flex flex-col min-h-[300px]">
                         <div className="flex justify-between items-center mb-6">
@@ -243,7 +250,7 @@ const Dashboard = () => {
 
             </main>
 
-            {/* Voice Trigger Button */}
+            {/* --- Voice Assistant Trigger --- */}
             <button
                 onClick={() => setIsVoiceOpen(true)}
                 className="fixed bottom-8 right-8 group flex items-center gap-3 pl-4 pr-2 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full shadow-[0_0_30px_-5px_rgba(79,70,229,0.5)] transition-all duration-300 hover:scale-105 hover:-translate-y-1 z-40 border border-white/10"
@@ -254,7 +261,7 @@ const Dashboard = () => {
                 </div>
             </button>
 
-            {/* Voice Modal Overlay */}
+            {/* --- Voice Modal Overlay --- */}
             <NexusInterface
                 isOpen={isVoiceOpen}
                 onClose={() => setIsVoiceOpen(false)}
@@ -264,7 +271,9 @@ const Dashboard = () => {
     );
 };
 
-// --- Sub Components ---
+// ==========================================
+// Sub-Components
+// ==========================================
 
 const QuickAction = ({ title, icon: Icon, shortcut, color }) => (
     <button className="bg-[#0A0A0A] border border-white/10 p-4 rounded-2xl flex items-center justify-between group hover:border-indigo-500/50 hover:bg-white/[0.02] transition-all">
