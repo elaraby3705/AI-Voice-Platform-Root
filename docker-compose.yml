@@ -136,3 +136,22 @@ networks:
 
 volumes:
   ai-voice-db-data:
+#---------------------
+# Service 7 : Nginx Gateway
+#--------------------
+
+gateway:
+  image: nginx:alpine
+  container_name: ai_voice_gateway
+  restart: always
+  ports:
+    # Map the Custom Nginx configuration
+    - "80: 80"
+    # Map log for debugging purposes
+    - ./gateway/logs:/var/log/nginx
+  depends_on:
+    - frontend
+    - backend
+    - realtime
+  networks:
+    - ai_voice_network
