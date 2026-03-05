@@ -1,15 +1,12 @@
 version: '3.8'
 
 services:
-
   # ----------------------------------------
   # Service 1: Redis (Message Broker)
   # ----------------------------------------
   redis:
     image: redis:alpine
     container_name: nexus_redis
-    ports:
-      - "6379:6379"
     networks:
       - ai-voice-network
     restart: always
@@ -25,8 +22,6 @@ services:
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
       - ./services/core-api:/app
-    ports:
-      - "8000:8000"
     env_file:
       - ./services/core-api/.env
     environment:
@@ -38,9 +33,6 @@ services:
     depends_on:
       - db
       - redis
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
     networks:
       - ai-voice-network
 
@@ -53,15 +45,10 @@ services:
       dockerfile: Dockerfile
     container_name: ai_voice_frontend
     volumes:
-      # Mount the entire frontend directory to detect config/package changes
       - ./voice-frontend:/app
-      # Protect node_modules to avoid overwriting container dependencies
       - /app/node_modules
-    ports:
-      - "5173:5173"
     environment:
-      - VITE_API_URL=http://localhost:8000/api/v1
-      # Enable polling for hot-reload on Virtual Machines (OSBoxes/Ubuntu)
+      - VITE_API_URL=http://localhost/api/v1
       - CHOKIDAR_USEPOLLING=true
       - WATCHPACK_POLLING=true
       - VITE_WATCH_USEPOLLING=true
@@ -84,8 +71,6 @@ services:
       - POSTGRES_DB=${DB_NAME:-ai_voice_db}
       - POSTGRES_USER=${DB_USER:-ai_voice_user}
       - POSTGRES_PASSWORD=${DB_PASSWORD:-ai_voice_password}
-    ports:
-      - "5432:5432"
     networks:
       - ai-voice-network
 
@@ -102,9 +87,6 @@ services:
     env_file:
       - ./services/ai-worker/.env
     restart: unless-stopped
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
     networks:
       - ai-voice-network
 
@@ -116,42 +98,36 @@ services:
       context: ./services/realtime-api
     command: uvicorn main:app --host 0.0.0.0 --port 8002 --reload
     container_name: ai_voice_realtime
-    ports:
-      - "8002:8002"
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - FRONTEND_URL=http://localhost:5173,http://127.0.0.1:5173,http://0.0.0.0:5173
     depends_on:
       - redis
     networks:
       - ai-voice-network
 
-# ----------------------------------------
-# Networks & Volumes Definition
-# ----------------------------------------
+  # ----------------------------------------
+  # Service 7: Nginx Gateway (Corrected Indentation)
+  # ----------------------------------------
+  gateway:
+    image: nginx:alpine
+    container_name: ai_voice_gateway
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./gateway/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./gateway/logs:/var/log/nginx
+    depends_on:
+      - frontend
+      - backend
+      - realtime-api
+    networks:
+      - ai-voice-network
+
 networks:
   ai-voice-network:
     driver: bridge
 
 volumes:
   ai-voice-db-data:
-#---------------------
-# Service 7 : Nginx Gateway
-#--------------------
-
-gateway:
-  image: nginx:alpine
-  container_name: ai_voice_gateway
-  restart: always
-  ports:
-    # Map the Custom Nginx configuration
-    - "80: 80"
-    # Map log for debugging purposes
-    - ./gateway/logs:/var/log/nginx
-  depends_on:
-    - frontend
-    - backend
-    - realtime
-  networks:
-    - ai_voice_network
