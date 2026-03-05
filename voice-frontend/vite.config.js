@@ -8,8 +8,8 @@ export default defineConfig({
     strictPort: true,
     port: 5173,
     hmr: {
-        // We tell Vite to look for HMR signals on the same path
-        path: '/ws' 
+        path: '/vite-hmr/', 
+        clientPort: 80 
     }
   }
 })
