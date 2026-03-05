@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
-import { default as useWebSocket, ReadyState } from 'react-use-websocket';
+import * as WsModule from 'react-use-websocket';
+const useWebSocket = WsModule.default || WsModule.useWebSocket;
+const ReadyState = WsModule.ReadyState;
 
 /**
  * 📡 THE BRIDGE: Real-time Connection via Nginx Gateway
