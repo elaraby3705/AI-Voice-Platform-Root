@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api/axios'; // Import the pre-configured axios instance
 import { useAuth } from '../context/AuthContext';
 import { useSearchParams } from 'react-router-dom';
 
@@ -10,7 +10,7 @@ export const useLiveKitAuth = () => {
     const [error, setError] = useState(null);
     const [isConnecting, setIsConnecting] = useState(true);
 
-    // 1. Capture URL Parameters (Voice & Project)
+    // Capture URL Parameters (Voice & Project)
     // These drive the session configuration.
     const [searchParams] = useSearchParams();
     const voiceId = searchParams.get('voice') || 'sarah';
@@ -24,28 +24,27 @@ export const useLiveKitAuth = () => {
             if (!token) return;
 
             try {
-                // 2. RESET STATE IMMEDIATELY
+                // RESET STATE IMMEDIATELY
                 // This forces the UI to show the loading state and disconnects
                 // the previous room before the new token is even fetched.
                 setRoomToken(null);
                 setIsConnecting(true);
                 setError(null);
 
-                // 3. Call Backend Token Endpoint
-                const API_URL = `http://${window.location.hostname}:8000/api/v1/projects/livekit/token/`;
-
-                const response = await axios.get(API_URL, {
+                // Call Backend Token Endpoint
+                // We use 'api' instance which uses the relative baseURL '/api/v1'
+                const response = await api.get('/projects/livekit/token/', {
                     headers: { Authorization: `Bearer ${token}` },
-                    // 4. Send the selection to Backend
+                    // Send the selection to Backend
                     // The backend will use these to generate a unique session ID
                     params: {
-                        voice: voiceId,     // e.g., 'marcus'
-                        project: projectId  // e.g., '5'
+                        voice: voiceId,   // e.g., 'marcus'
+                        project: projectId // e.g., '5'
                     }
                 });
 
                 if (isMounted) {
-                    // 5. Set the data needed for the Room
+                    // Set the data needed for the Room
                     setRoomToken(response.data.token);
                     setWsUrl(response.data.url);
                     setIsConnecting(false);
@@ -65,7 +64,7 @@ export const useLiveKitAuth = () => {
         // Cleanup
         return () => { isMounted = false; };
 
-    }, [token, voiceId, projectId]); // <--- Re-run logic immediately if voice or project changes
+    }, [token, voiceId, projectId]); // Re-run logic immediately if voice or project changes
 
     return { roomToken, wsUrl, error, isConnecting };
 };
