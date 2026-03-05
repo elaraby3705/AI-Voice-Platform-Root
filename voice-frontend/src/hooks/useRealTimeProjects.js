@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import useWebSocket, { ReadyState } from 'react-use-websocket';
+import { default as useWebSocket, ReadyState } from 'react-use-websocket';
 
 /**
  * 📡 THE BRIDGE: Real-time Connection via Nginx Gateway
