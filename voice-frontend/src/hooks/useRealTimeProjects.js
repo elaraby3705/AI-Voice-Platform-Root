@@ -2,25 +2,26 @@ import { useEffect } from 'react';
 import useWebSocket, { ReadyState } from 'react-use-websocket';
 
 /**
- * 📡 THE BRIDGE FIX:
- * We connect to the FRONTEND port (5173) but via the '/ws/' path.
- * This triggers the Vite Proxy to securely tunnel the data to port 8002.
+ * 📡 THE BRIDGE: Real-time Connection via Nginx Gateway
+ * This hook connects directly to the Nginx Gateway (Port 80)
+ * Nginx will tunnel this WebSocket connection to the Real-time API (Port 8002)
  */
-const WS_DOMAIN = window.location.host; // This is 'localhost:5173'
-const SOCKET_URL = `ws://${WS_DOMAIN}/ws/projects/`; // 👈 MUST start with /ws/
+const SOCKET_URL = `ws://${window.location.host}/ws/projects/`; 
 
 export const useRealTimeProjects = (onProjectCreated) => {
+  // Establishing connection via the Nginx reverse proxy
   const { lastJsonMessage, readyState } = useWebSocket(SOCKET_URL, {
     shouldReconnect: () => true,
     reconnectAttempts: 20,
     reconnectInterval: 5000,
     
-    // Debugging Console - Watch for the "🟢"
-    onOpen: () => console.log("🟢 [SYSTEM] Tunnel established via Vite Proxy!"),
+    // Debugging connection states
+    onOpen: () => console.log("🟢 [SYSTEM] Tunnel established via Nginx Gateway!"),
     onClose: () => console.log("🔴 [SYSTEM] Tunnel closed. Retrying..."),
     onError: (err) => console.error("❌ [SYSTEM] Connection failed at:", SOCKET_URL)
   });
 
+  // Map WebSocket states to readable strings
   const connectionStatus = {
     [ReadyState.CONNECTING]: 'Connecting',
     [ReadyState.OPEN]: 'Open',
@@ -29,9 +30,12 @@ export const useRealTimeProjects = (onProjectCreated) => {
     [ReadyState.UNINSTANTIATED]: 'Uninstantiated',
   }[readyState];
 
+  // Listener for incoming data (e.g., new project notifications)
   useEffect(() => {
     if (lastJsonMessage !== null) {
-      console.log('📩 [DATA] Message received from Redis:', lastJsonMessage);
+      console.log('📩 [DATA] Message received from Redis/Real-time API:', lastJsonMessage);
+      
+      // Handle project creation events
       if (lastJsonMessage.type === 'PROJECT_CREATED' && onProjectCreated) {
         onProjectCreated(lastJsonMessage.data);
       }
