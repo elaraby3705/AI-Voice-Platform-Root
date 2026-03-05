@@ -1,8 +1,10 @@
 import axios from 'axios';
 
+// SOLUTION: Use a relative path so Nginx handles the routing internally
 const getBaseUrl = () => {
-    const hostname = window.location.hostname;
-    return `http://${hostname}:8000/api/v1`;
+    // Simply return the path. 
+    // The browser will automatically prepend the current domain/port (Nginx at :80)
+    return '/api/v1'; 
 };
 
 const api = axios.create({
