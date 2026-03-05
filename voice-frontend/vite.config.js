@@ -4,13 +4,12 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: '0.0.0.0', // Essential for Docker networking
+    host: '0.0.0.0', 
     strictPort: true,
     port: 5173,
-    watch: {
-      usePolling: true,
-      interval: 100,
-    },
-    // Proxy logic removed: Nginx acts as the central gateway
+    hmr: {
+        // We tell Vite to look for HMR signals on the same path
+        path: '/ws' 
+    }
   }
 })
