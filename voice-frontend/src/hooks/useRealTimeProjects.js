@@ -1,6 +1,5 @@
-import * as WebSocketLibrary from 'react-use-websocket';
-const useWebSocket = WebSocketLibrary.default?.useWebSocket || WebSocketLibrary.useWebSocket || WebSocketLibrary.default;
-const { ReadyState } = WebSocketLibrary;
+import { useEffect } from 'react';
+import { default as useWebSocket, ReadyState } from 'react-use-websocket';
 
 /**
  * 📡 THE BRIDGE: Real-time Connection via Nginx Gateway
