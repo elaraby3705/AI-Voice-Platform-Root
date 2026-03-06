@@ -1,37 +1,45 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import * as WebSocketModule from 'react-use-websocket';
 
+/**
+ * 📡 THE BRIDGE: Real-time Connection via Nginx Gateway
+ * This hook manages the WebSocket connection to the Real-time API
+ * tunnelled through the Nginx Gateway.
+ */
+const SOCKET_URL = `ws://${window.location.host}/ws/projects/`;
+
+// Extract function and ReadyState safely for Vite environment
 const useWebSocket = WebSocketModule.default?.useWebSocket || WebSocketModule.useWebSocket || WebSocketModule.default;
 const { ReadyState } = WebSocketModule;
 
-const SOCKET_URL = `ws://${window.location.host}/ws/projects/`;
-
 export const useRealTimeProjects = (onProjectCreated) => {
+  // Validate if the library was imported successfully
+  if (typeof useWebSocket !== 'function') {
+    console.error("CRITICAL: useWebSocket is not a function. Check your import.");
+    return { connectionStatus: 'Error' };
+  }
 
-    if (typeof useWebSocket !== 'function') {
-        console.error("CRITICAL: useWebSocket is not a function. Check your import.");
-        return { connectionStatus: 'Error' };
-    }
-
-    const { lastJsonMessage, readyState } = useWebSocket(SOCKET_URL, {
-        shouldReconnect: () => true,
-        reconnectAttempts: 20,
-        reconnectInterval: 5000,
-    });
-// Debugging connection states
+  // Establish connection
+  const { lastJsonMessage, readyState } = useWebSocket(SOCKET_URL, {
+    shouldReconnect: () => true,
+    reconnectAttempts: 20,
+    reconnectInterval: 5000,
     onOpen: () => console.log("🟢 [SYSTEM] Tunnel established via Nginx Gateway!"),
     onClose: () => console.log("🔴 [SYSTEM] Tunnel closed. Retrying..."),
     onError: (err) => console.error("❌ [SYSTEM] Connection failed at:", SOCKET_URL)
   });
 
-  // Map WebSocket states to readable strings
-  const connectionStatus = {
-    [ReadyState.CONNECTING]: 'Connecting',
-    [ReadyState.OPEN]: 'Open',
-    [ReadyState.CLOSING]: 'Closing',
-    [ReadyState.CLOSED]: 'Closed',
-    [ReadyState.UNINSTANTIATED]: 'Uninstantiated',
-  }[readyState];
+  // Map readyState to descriptive strings
+  const connectionStatus = useMemo(() => {
+    const states = {
+      [ReadyState.CONNECTING]: 'Connecting',
+      [ReadyState.OPEN]: 'Open',
+      [ReadyState.CLOSING]: 'Closing',
+      [ReadyState.CLOSED]: 'Closed',
+      [ReadyState.UNINSTANTIATED]: 'Uninstantiated',
+    };
+    return states[readyState] || 'Unknown';
+  }, [readyState]);
 
   // Listener for incoming data (e.g., new project notifications)
   useEffect(() => {
@@ -44,5 +52,6 @@ export const useRealTimeProjects = (onProjectCreated) => {
       }
     }
   }, [lastJsonMessage, onProjectCreated]);
-    return { connectionStatus: readyState }; 
+
+  return { connectionStatus };
 };
