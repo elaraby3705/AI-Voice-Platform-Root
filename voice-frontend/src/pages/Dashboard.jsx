@@ -4,9 +4,9 @@ import { useRealTimeProjects } from '../hooks/useRealTimeProjects';
 import api from '../api/axios';
 import NexusInterface from '../components/voice/NexusInterface';
 import { 
-    Activity, Cpu, Zap, FileAudio, Loader2, Mic, ShieldCheck 
+    Zap, Loader2, Mic, ShieldCheck, Server, Clock, BarChart3, ChevronRight 
 } from 'lucide-react';
-import { AreaChart, Area, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, ResponsiveContainer, Tooltip } from 'recharts';
 
 const Dashboard = () => {
     const { user, loading: authLoading } = useAuth();
@@ -18,15 +18,14 @@ const Dashboard = () => {
     const lastProjectCount = useRef(0);
     const displayUser = user?.email?.split('@')[0] || 'Operator';
 
-    // WebSocket Hook Integration
     const { connectionStatus } = useRealTimeProjects((newProject) => {
         triggerUpdate(newProject);
     });
 
     const triggerUpdate = (newProject) => {
         if (!newProject) return;
-        setNotification(`New Project: ${newProject.name || newProject.title}`);
-        setTimeout(() => setNotification(null), 5000);
+        setNotification(`Live Sync: ${newProject.name || 'New Process'}`);
+        setTimeout(() => setNotification(null), 4000);
         setProjects(prev => {
             const list = Array.isArray(prev) ? prev : [];
             return list.some(p => p.id === newProject.id) ? list : [newProject, ...list];
@@ -40,11 +39,6 @@ const Dashboard = () => {
             try {
                 const response = await api.get('/projects/');
                 const data = Array.isArray(response.data) ? response.data : [];
-                
-                if (isPolling && data.length > lastProjectCount.current && lastProjectCount.current !== 0) {
-                    setNotification(`Sync: ${data[0].name || data[0].title}`);
-                    setTimeout(() => setNotification(null), 4000);
-                }
                 setProjects(data);
                 lastProjectCount.current = data.length;
             } catch (error) {
@@ -60,81 +54,122 @@ const Dashboard = () => {
     }, [user, authLoading]);
 
     return (
-        <div className="flex min-h-screen bg-[#050505] text-white">
-            <main className="flex-1 p-10">
-                {notification && (
-                    <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-indigo-600 px-6 py-3 rounded-full shadow-lg border border-indigo-400/30 flex items-center gap-3">
-                        <Zap className="w-4 h-4 animate-pulse" />
-                        <span className="font-bold text-sm">{notification}</span>
-                    </div>
-                )}
-
-                <header className="mb-10 flex justify-between items-end">
+        <div className="flex min-h-screen bg-[#020202] text-slate-200 selection:bg-indigo-500/30">
+            <main className="flex-1 p-8 lg:p-12 max-w-[1600px] mx-auto">
+                
+                {/* Header Section */}
+                <header className="mb-12 flex justify-between items-start">
                     <div>
-                        <h1 className="text-3xl font-bold mb-2">System Overview</h1>
-                        <p className="text-slate-400 text-sm">Welcome, {displayUser}.</p>
+                        <h1 className="text-4xl font-extrabold tracking-tight text-white mb-2">Nexus Control</h1>
+                        <p className="text-slate-500 font-medium">Welcome back, {displayUser}. Systems are nominal.</p>
                     </div>
-                    <div className={`border rounded-full px-4 py-1.5 ${connectionStatus === 'Open' ? 'border-emerald-500/20' : 'border-amber-500/20'}`}>
-                        <span className={`text-xs ${connectionStatus === 'Open' ? 'text-emerald-400' : 'text-amber-400'}`}>
-                            {connectionStatus === 'Open' ? 'Socket Active' : (connectionStatus || 'Connecting...')}
-                        </span>
+                    <div className="flex items-center gap-4">
+                         <div className={`flex items-center gap-2 border rounded-full px-4 py-2 ${connectionStatus === 'Open' ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-amber-500/20'}`}>
+                            <div className={`w-2 h-2 rounded-full ${connectionStatus === 'Open' ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                            <span className="text-xs font-semibold tracking-wider uppercase">
+                                {connectionStatus === 'Open' ? 'Live Stream Active' : 'Polling Sync'}
+                            </span>
+                        </div>
                     </div>
                 </header>
 
-                <div className="grid grid-cols-3 gap-6 mb-8">
-                    <div className="col-span-2 bg-[#0A0A0A] border border-white/10 rounded-3xl p-6">
-                        <h3 className="text-sm font-bold mb-4">Throughput</h3>
-                        <div className="h-[200px]">
+                {/* KPI Cards Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <KpiCard title="Active Projects" value={Array.isArray(projects) ? projects.length : 0} color="text-indigo-400" icon={Zap} />
+                    <KpiCard title="System Load" value="42%" color="text-blue-400" icon={Cpu} />
+                    <KpiCard title="Uptime" value="99.9%" color="text-emerald-400" icon={ShieldCheck} />
+                    <KpiCard title="Latency" value="24ms" color="text-purple-400" icon={Activity} />
+                </div>
+
+                {/* Main Content Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    {/* Chart Panel */}
+                    <div className="lg:col-span-2 bg-[#080808] border border-white/5 rounded-3xl p-8 hover:border-indigo-500/20 transition-all">
+                        <h3 className="text-sm font-semibold text-white mb-6 flex items-center gap-2">
+                            <BarChart3 className="w-4 h-4 text-indigo-400" /> Throughput Analytics
+                        </h3>
+                        <div className="h-[250px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={[{v:10}, {v:30}, {v:20}]}>
-                                    <Area type="monotone" dataKey="v" stroke="#6366f1" fill="#6366f120" />
+                                <AreaChart data={[{v:10}, {v:30}, {v:20}, {v:50}, {v:40}, {v:60}]}>
+                                    <Tooltip contentStyle={{backgroundColor: '#050505', border: '1px solid #333'}} />
+                                    <Area type="monotone" dataKey="v" stroke="#6366f1" fill="url(#colorV)" strokeWidth={2} />
+                                    <defs>
+                                        <linearGradient id="colorV" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+                                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                                        </linearGradient>
+                                    </defs>
                                 </AreaChart>
                             </ResponsiveContainer>
                         </div>
                     </div>
-                    <div className="col-span-1 space-y-4">
-                        <KpiCard title="Total Projects" value={Array.isArray(projects) ? projects.length : 0} color="text-indigo-400" icon={Zap} />
-                        <KpiCard title="System Status" value="Online" color="text-emerald-400" icon={ShieldCheck} />
+
+                    {/* Quick Access / Voice Status */}
+                    <div className="bg-[#080808] border border-white/5 rounded-3xl p-8 flex flex-col justify-between">
+                        <div>
+                            <h3 className="text-sm font-semibold text-white mb-4">Voice Engine</h3>
+                            <div className="space-y-4">
+                                <div className="flex justify-between items-center bg-white/5 p-4 rounded-2xl">
+                                    <span className="text-xs text-slate-400">Current Model</span>
+                                    <span className="text-xs font-bold text-white">GPT-4o-Audio</span>
+                                </div>
+                                <div className="flex justify-between items-center bg-white/5 p-4 rounded-2xl">
+                                    <span className="text-xs text-slate-400">Status</span>
+                                    <span className="text-xs font-bold text-emerald-400">Ready</span>
+                                </div>
+                            </div>
+                        </div>
+                        <button onClick={() => setIsVoiceOpen(true)} className="w-full mt-6 py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-500 font-bold flex items-center justify-center gap-2 transition-all">
+                            <Mic className="w-4 h-4" /> Start Nexus Session
+                        </button>
                     </div>
                 </div>
 
-                <div className="bg-[#0A0A0A] border border-white/10 rounded-3xl p-6">
-                    {loading ? (
-                        <div className="flex justify-center p-10"><Loader2 className="animate-spin text-indigo-500" /></div>
-                    ) : (
-                        <table className="w-full text-left">
+                {/* Detailed Table */}
+                <div className="mt-8 bg-[#080808] border border-white/5 rounded-3xl p-8">
+                    <h3 className="text-sm font-semibold text-white mb-6">Recent Project Deployments</h3>
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className="text-slate-500 text-[10px] uppercase tracking-widest border-b border-white/5">
+                                <tr>
+                                    <th className="pb-4 text-left">Project Name</th>
+                                    <th className="pb-4 text-left">Created At</th>
+                                    <th className="pb-4 text-left">Status</th>
+                                    <th className="pb-4 text-left">Actions</th>
+                                </tr>
+                            </thead>
                             <tbody>
-                                {Array.isArray(projects) && projects.length > 0 ? (
+                                {loading ? <tr><td colSpan="4" className="py-10 text-center"><Loader2 className="animate-spin w-6 h-6 mx-auto text-indigo-500" /></td></tr> : 
+                                 Array.isArray(projects) && projects.length > 0 ? (
                                     projects.map(p => (
-                                        <tr key={p.id} className="border-b border-white/5">
-                                            <td className="py-3">{p.name || p.title || 'Untitled Project'}</td>
-                                            <td className="py-3 text-emerald-400 text-xs">Ready</td>
+                                        <tr key={p.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                                            <td className="py-4 text-sm font-medium">{p.name || p.title}</td>
+                                            <td className="py-4 text-xs text-slate-500">{new Date(p.created_at).toLocaleDateString()}</td>
+                                            <td className="py-4"><span className="px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] uppercase font-bold">Deployed</span></td>
+                                            <td className="py-4"><ChevronRight className="w-4 h-4 text-slate-600" /></td>
                                         </tr>
                                     ))
                                 ) : (
-                                    <tr><td className="py-4 text-center text-slate-500">No projects found.</td></tr>
+                                    <tr><td colSpan="4" className="py-10 text-center text-slate-500 text-sm italic">No projects found.</td></tr>
                                 )}
                             </tbody>
                         </table>
-                    )}
+                    </div>
                 </div>
             </main>
 
-            <button onClick={() => setIsVoiceOpen(true)} className="fixed bottom-8 right-8 bg-indigo-600 p-4 rounded-full shadow-xl">
-                <Mic className="w-6 h-6" />
-            </button>
             <NexusInterface isOpen={isVoiceOpen} onClose={() => setIsVoiceOpen(false)} />
         </div>
     );
 };
 
 const KpiCard = ({ title, value, icon: Icon, color }) => (
-    <div className="bg-[#0A0A0A] border border-white/10 p-5 rounded-3xl flex justify-between items-center">
+    <div className="bg-[#080808] border border-white/5 p-6 rounded-3xl flex items-center justify-between hover:border-white/10 transition-all">
         <div>
-            <div className="text-[10px] text-slate-500 uppercase">{title}</div>
-            <div className="text-xl font-bold">{value}</div>
+            <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">{title}</div>
+            <div className="text-2xl font-bold tracking-tight">{value}</div>
         </div>
-        <div className={`p-3 rounded-xl bg-white/5 ${color}`}><Icon className="w-5 h-5" /></div>
+        <div className={`p-3 rounded-2xl bg-white/5 ${color}`}><Icon className="w-6 h-6" /></div>
     </div>
 );
 
