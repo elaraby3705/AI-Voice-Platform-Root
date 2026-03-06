@@ -44,7 +44,7 @@ INSTALLED_APPS = [
     'rest_framework',                   # The API Framework
     'rest_framework_simplejwt',         # JWT Authentication
     'rest_framework_simplejwt.token_blacklist', # For Secure Logout (Blacklisting tokens)
-    'corsheaders',                      # Allows Frontend (React) to talk to Backend
+    # 'corsheaders',                      # Allows Frontend (React) to talk to Backend
 
     # Local Project Apps
     'accounts.apps.AccountsConfig',      # Users & Auth
@@ -62,7 +62,7 @@ AUTH_USER_MODEL = "accounts.User"
 # -----------------------------------------------------------------------------
 MIDDLEWARE = [
     # CRITICAL: CorsMiddleware must be at the very top to handle headers first
-    "corsheaders.middleware.CorsMiddleware",
+    #"corsheaders.middleware.CorsMiddleware",
 
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -184,11 +184,11 @@ if not EMAIL_HOST or not EMAIL_HOST_PASSWORD:
 # 8. CORS CONFIGURATION (Frontend Connection)
 # -----------------------------------------------------------------------------
 # List of trusted origins (React Frontend IPs)
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://192.168.100.30:5173", # Your VBox VM IP
-]
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:5173",
+#     "http://127.0.0.1:5173",
+#     "http://192.168.100.30:5173", # Your VBox VM IP
+# ]
 # If you run into issues, you can uncomment this for dev, but it's less secure:
 # CORS_ALLOW_ALL_ORIGINS = True
 
