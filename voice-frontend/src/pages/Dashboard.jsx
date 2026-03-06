@@ -1,11 +1,11 @@
+import { 
+    Zap, Loader2, Mic, ShieldCheck, Server, Clock, BarChart3, ChevronRight, Activity, Cpu 
+} from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useRealTimeProjects } from '../hooks/useRealTimeProjects';
 import api from '../api/axios';
 import NexusInterface from '../components/voice/NexusInterface';
-import { 
-    Zap, Loader2, Mic, ShieldCheck, Server, Clock, BarChart3, ChevronRight 
-} from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from 'recharts';
 
 const Dashboard = () => {
