@@ -24,9 +24,13 @@ const Dashboard = () => {
     });
 
     const triggerUpdate = (newProject) => {
+        if (!newProject) return;
         setNotification(`New Project: ${newProject.name || newProject.title}`);
         setTimeout(() => setNotification(null), 5000);
-        setProjects(prev => prev.some(p => p.id === newProject.id) ? prev : [newProject, ...prev]);
+        setProjects(prev => {
+            const list = Array.isArray(prev) ? prev : [];
+            return list.some(p => p.id === newProject.id) ? list : [newProject, ...list];
+        });
     };
 
     useEffect(() => {
@@ -35,7 +39,8 @@ const Dashboard = () => {
         const fetchProjects = async (isPolling = false) => {
             try {
                 const response = await api.get('/projects/');
-                const data = response.data;
+                const data = Array.isArray(response.data) ? response.data : [];
+                
                 if (isPolling && data.length > lastProjectCount.current && lastProjectCount.current !== 0) {
                     setNotification(`Sync: ${data[0].name || data[0].title}`);
                     setTimeout(() => setNotification(null), 4000);
@@ -71,12 +76,11 @@ const Dashboard = () => {
                     </div>
                     <div className={`border rounded-full px-4 py-1.5 ${connectionStatus === 'Open' ? 'border-emerald-500/20' : 'border-amber-500/20'}`}>
                         <span className={`text-xs ${connectionStatus === 'Open' ? 'text-emerald-400' : 'text-amber-400'}`}>
-                            {connectionStatus === 'Open' ? 'Socket Active' : 'Polling Active'}
+                            {connectionStatus === 'Open' ? 'Socket Active' : (connectionStatus || 'Connecting...')}
                         </span>
                     </div>
                 </header>
 
-                {/* Dashboard Grid */}
                 <div className="grid grid-cols-3 gap-6 mb-8">
                     <div className="col-span-2 bg-[#0A0A0A] border border-white/10 rounded-3xl p-6">
                         <h3 className="text-sm font-bold mb-4">Throughput</h3>
@@ -89,21 +93,27 @@ const Dashboard = () => {
                         </div>
                     </div>
                     <div className="col-span-1 space-y-4">
-                        <KpiCard title="Total Projects" value={projects.length} color="text-indigo-400" icon={Zap} />
+                        <KpiCard title="Total Projects" value={Array.isArray(projects) ? projects.length : 0} color="text-indigo-400" icon={Zap} />
                         <KpiCard title="System Status" value="Online" color="text-emerald-400" icon={ShieldCheck} />
                     </div>
                 </div>
 
                 <div className="bg-[#0A0A0A] border border-white/10 rounded-3xl p-6">
-                    {loading ? <Loader2 className="animate-spin text-indigo-500" /> : (
+                    {loading ? (
+                        <div className="flex justify-center p-10"><Loader2 className="animate-spin text-indigo-500" /></div>
+                    ) : (
                         <table className="w-full text-left">
                             <tbody>
-                                {projects.map(p => (
-                                    <tr key={p.id} className="border-b border-white/5">
-                                        <td className="py-3">{p.name || p.title}</td>
-                                        <td className="py-3 text-emerald-400 text-xs">Ready</td>
-                                    </tr>
-                                ))}
+                                {Array.isArray(projects) && projects.length > 0 ? (
+                                    projects.map(p => (
+                                        <tr key={p.id} className="border-b border-white/5">
+                                            <td className="py-3">{p.name || p.title || 'Untitled Project'}</td>
+                                            <td className="py-3 text-emerald-400 text-xs">Ready</td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr><td className="py-4 text-center text-slate-500">No projects found.</td></tr>
+                                )}
                             </tbody>
                         </table>
                     )}
