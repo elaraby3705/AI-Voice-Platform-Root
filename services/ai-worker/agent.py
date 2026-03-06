@@ -39,7 +39,7 @@ async def entrypoint(ctx: JobContext):
     )
 
     agent.start(ctx.room, participant)
-    await agent.say(f"Hello {user_name}, I am ready to manage your projects.")
+    await agent.say(f"Hello {user_name}, How am I can I help you today .")
 
 if __name__ == "__main__":
     cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
