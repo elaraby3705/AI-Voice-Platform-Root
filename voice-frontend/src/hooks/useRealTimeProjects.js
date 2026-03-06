@@ -8,29 +8,30 @@ import * as WebSocketModule from 'react-use-websocket';
  */
 const SOCKET_URL = `ws://${window.location.host}/ws/projects/`;
 
-// Extract function and ReadyState safely for Vite environment
-const useWebSocket = WebSocketModule.default?.useWebSocket || WebSocketModule.useWebSocket || WebSocketModule.default;
+// Securely extract the hook and ReadyState to handle Vite's ESM bundling
+const useWebSocket = WebSocketModule.useWebSocket || WebSocketModule.default?.useWebSocket || WebSocketModule.default;
 const { ReadyState } = WebSocketModule;
 
 export const useRealTimeProjects = (onProjectCreated) => {
-  // Validate if the library was imported successfully
-  if (typeof useWebSocket !== 'function') {
-    console.error("CRITICAL: useWebSocket is not a function. Check your import.");
-    return { connectionStatus: 'Error' };
-  }
+  // Validate that the library was imported and resolved as a function
+  const isLibraryReady = typeof useWebSocket === 'function';
 
-  // Establish connection
-  const { lastJsonMessage, readyState } = useWebSocket(SOCKET_URL, {
-    shouldReconnect: () => true,
-    reconnectAttempts: 20,
-    reconnectInterval: 5000,
-    onOpen: () => console.log("🟢 [SYSTEM] Tunnel established via Nginx Gateway!"),
-    onClose: () => console.log("🔴 [SYSTEM] Tunnel closed. Retrying..."),
-    onError: (err) => console.error("❌ [SYSTEM] Connection failed at:", SOCKET_URL)
-  });
+  // Establish the WebSocket connection
+  const { lastJsonMessage, readyState } = isLibraryReady 
+    ? useWebSocket(SOCKET_URL, {
+        shouldReconnect: () => true,
+        reconnectAttempts: 20,
+        reconnectInterval: 5000,
+        onOpen: () => console.log("🟢 [SYSTEM] Tunnel established via Nginx Gateway!"),
+        onClose: () => console.log("🔴 [SYSTEM] Tunnel closed. Retrying..."),
+        onError: (err) => console.error("❌ [SYSTEM] Connection failed at:", SOCKET_URL)
+      })
+    : { lastJsonMessage: null, readyState: null };
 
-  // Map readyState to descriptive strings
+  // Map readyState to descriptive strings for UI display
   const connectionStatus = useMemo(() => {
+    if (!isLibraryReady) return 'Library Load Error';
+    
     const states = {
       [ReadyState.CONNECTING]: 'Connecting',
       [ReadyState.OPEN]: 'Open',
@@ -39,11 +40,11 @@ export const useRealTimeProjects = (onProjectCreated) => {
       [ReadyState.UNINSTANTIATED]: 'Uninstantiated',
     };
     return states[readyState] || 'Unknown';
-  }, [readyState]);
+  }, [readyState, isLibraryReady]);
 
-  // Listener for incoming data (e.g., new project notifications)
+  // Listener for incoming messages from Redis/Real-time API
   useEffect(() => {
-    if (lastJsonMessage !== null) {
+    if (lastJsonMessage !== null && typeof lastJsonMessage === 'object') {
       console.log('📩 [DATA] Message received from Redis/Real-time API:', lastJsonMessage);
       
       // Handle project creation events
