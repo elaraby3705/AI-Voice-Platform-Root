@@ -7,7 +7,7 @@ User = get_user_model()
 # 1. User Serializer
 class UserSerializer(serializers.ModelSerializer):
     """
-    Shows basic user info. Added support for profile fields if needed.
+    Shows basic user info. Uses source to map profile fields safely.
     """
     first_name = serializers.CharField(source='profile.first_name', read_only=True)
     last_name = serializers.CharField(source='profile.last_name', read_only=True)
@@ -19,6 +19,9 @@ class UserSerializer(serializers.ModelSerializer):
 
 # 2. Registration Serializer
 class RegistrationSerializer(serializers.ModelSerializer):
+    """
+    Handles user registration.
+    """
     password = serializers.CharField(write_only=True, min_length=6)
 
     class Meta:
@@ -32,7 +35,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
         )
 
 
-# 3. Custom Login Serializer (Robust & Safe)
+# 3. Custom Login Serializer (The JWT Connector)
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
     JWT Serializer with safety checks to prevent 500 errors 
@@ -40,13 +43,15 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
 
     def validate(self, attrs):
+        # Generate the standard Access/Refresh tokens
         data = super().validate(attrs)
 
         # Safely access profile data using getattr
         profile = getattr(self.user, 'profile', None)
         
+        # Add custom user data
         data['user'] = {
-            'id': str(self.user.id),  # Ensure UUID is string for JSON
+            'id': str(self.user.id),  # Ensure UUID is string for JSON serialization
             'email': self.user.email,
             'first_name': profile.first_name if profile else "",
             'last_name': profile.last_name if profile else "",
