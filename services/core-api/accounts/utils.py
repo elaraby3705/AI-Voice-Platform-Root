@@ -1,20 +1,21 @@
 import logging
-import random
 from django.core.mail import send_mail
 from django.conf import settings
 from .models import OneTimePassword
 
+# Initialize logger for production error tracking
 logger = logging.getLogger(__name__)
 
 def send_otp_email(user):
     """
     Generates a verification code and sends it to the user's email.
+    Returns True if the email was sent successfully, False otherwise.
     """
     try:
-        # 1. Generate code using the model's class method
+        # 1. Generate the OTP code using the model's class method
         otp_instance = OneTimePassword.generate_code(user)
 
-        # 2. Prepare email content
+        # 2. Construct the email content
         subject = 'Nexus AI - Verification Code'
         message = (
             f"Hi there,\n\n"
@@ -26,7 +27,7 @@ def send_otp_email(user):
             f"Nexus AI Team"
         )
 
-        # 3. Send the email
+        # 3. Dispatch the email using Django's standard mail service
         send_mail(
             subject=subject,
             message=message,
@@ -37,5 +38,6 @@ def send_otp_email(user):
         return True
 
     except Exception as e:
-        logger.error(f"Error sending email: {str(e)}")
+        # Log the error with full stack trace info if possible
+        logger.error(f"Error sending email to {user.email}: {str(e)}")
         return False
