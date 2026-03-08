@@ -8,7 +8,6 @@ import os
 # Connect to Redis
 redis_client = redis.Redis.from_url(os.getenv("REDIS_URL", "redis://redis:6379/0"))
 
-
 @receiver(post_save, sender=Project)
 def publish_project_created(sender, instance, created, **kwargs):
     """
@@ -17,14 +16,17 @@ def publish_project_created(sender, instance, created, **kwargs):
     if created:
         print(f"🚀 Signal Triggered: Project '{instance.name}' created.")
 
-        # Prepare the payload
+        # Prepare the payload with the new enterprise fields
         payload = {
             "type": "PROJECT_CREATED",
             "data": {
-                "id": instance.id,
+                "id": str(instance.id),  # CRITICAL: Convert UUID to string
+                "slug": instance.slug,
                 "name": instance.name,
                 "description": instance.description,
-                "owner_id": instance.owner.id,
+                "status": instance.status,
+                "priority": instance.priority,
+                "owner_id": instance.owner.id if instance.owner else None,
                 "created_at": instance.created_at.isoformat()
             }
         }

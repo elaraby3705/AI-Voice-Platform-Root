@@ -9,8 +9,6 @@ urlpatterns = [
     path("login/", LoginView.as_view(), name="auth-login"),
     path("me/", MeView.as_view(), name="me"),
     path("logout/", LogoutView.as_view(), name="auth-logout"),
-    # -----------------------------------------------------
     # 2. New OTP Verification Endpoint
-    # -----------------------------------------------------
     path("verify-email/", VerifyOTPView.as_view(), name="auth-verify-email"),
 ]
