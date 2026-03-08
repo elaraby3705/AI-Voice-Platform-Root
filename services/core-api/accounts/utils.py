@@ -1,41 +1,55 @@
-from django.core.mail import send_mail
-from django.conf import settings
-from .models import OneTimePassword
+from rest_framework import serializers
+from django.contrib.auth import get_user_model
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
+User = get_user_model()
 
-def send_otp_email(user):
+# 1. User Serializer
+class UserSerializer(serializers.ModelSerializer):
     """
-    Generates a verification code and sends it to the user's email.
-    Returns True if successful, False otherwise.
+    Shows basic user info. Added support for profile fields if needed.
     """
-    try:
-        # 1. Generate code and save to DB
-        otp_instance = OneTimePassword.generate_code(user)
+    first_name = serializers.CharField(source='profile.first_name', read_only=True)
+    last_name = serializers.CharField(source='profile.last_name', read_only=True)
 
-        # 2. Prepare email content
-        subject = 'Nexus AI - Verification Code'
-        message = f"""
-        Hi {user.username},
+    class Meta:
+        model = User
+        fields = ("id", "email", "first_name", "last_name")
 
-        Welcome to Nexus AI!
-        Your verification code is: {otp_instance.code}
 
-        This code expires in 5 minutes.
-        Do not share this code with anyone.
+# 2. Registration Serializer
+class RegistrationSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, min_length=6)
 
-        Best regards,
-        Nexus AI Team
-        """
+    class Meta:
+        model = User
+        fields = ("email", "password")
 
-        # 3. Send the email
-        send_mail(
-            subject,
-            message,
-            settings.DEFAULT_FROM_EMAIL,
-            [user.email],
-            fail_silently=False,
+    def create(self, validated_data):
+        return User.objects.create_user(
+            email=validated_data['email'],
+            password=validated_data['password']
         )
-        return True
-    except Exception as e:
-        print(f"❌ Error sending email: {e}")
-        return False
+
+
+# 3. Custom Login Serializer (Robust & Safe)
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """
+    JWT Serializer with safety checks to prevent 500 errors 
+    if a user lacks a profile.
+    """
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+
+        # Safely access profile data using getattr
+        profile = getattr(self.user, 'profile', None)
+        
+        data['user'] = {
+            'id': str(self.user.id),  # Ensure UUID is string for JSON
+            'email': self.user.email,
+            'first_name': profile.first_name if profile else "",
+            'last_name': profile.last_name if profile else "",
+        }
+
+        return data
