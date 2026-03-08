@@ -4,12 +4,17 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 User = get_user_model()
 
-
-# 1. User Serializer (Fixed: Removed 'username')
+# 1. User Serializer
 class UserSerializer(serializers.ModelSerializer):
+    """
+    Shows basic user info. Added support for profile fields if needed.
+    """
+    first_name = serializers.CharField(source='profile.first_name', read_only=True)
+    last_name = serializers.CharField(source='profile.last_name', read_only=True)
+
     class Meta:
         model = User
-        fields = ("id", "email")  # Only email and ID are available now
+        fields = ("id", "email", "first_name", "last_name")
 
 
 # 2. Registration Serializer
@@ -21,28 +26,30 @@ class RegistrationSerializer(serializers.ModelSerializer):
         fields = ("email", "password")
 
     def create(self, validated_data):
-        # Best practice: Use create_user to handle hashing automatically
         return User.objects.create_user(
             email=validated_data['email'],
             password=validated_data['password']
         )
 
 
-# 3. Custom Login Serializer (The JWT Connector)
+# 3. Custom Login Serializer (Robust & Safe)
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
-    This replaces your old LoginSerializer.
-    It tells the JWT library to include user details in the response.
+    JWT Serializer with safety checks to prevent 500 errors 
+    if a user lacks a profile.
     """
 
     def validate(self, attrs):
-        # Generate the standard Access/Refresh tokens
         data = super().validate(attrs)
 
-        # Add custom user data (so the Frontend knows who logged in)
+        # Safely access profile data using getattr
+        profile = getattr(self.user, 'profile', None)
+        
         data['user'] = {
-            'id': self.user.id,
+            'id': str(self.user.id),  # Ensure UUID is string for JSON
             'email': self.user.email,
+            'first_name': profile.first_name if profile else "",
+            'last_name': profile.last_name if profile else "",
         }
 
         return data
