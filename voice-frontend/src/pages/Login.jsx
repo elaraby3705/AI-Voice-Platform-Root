@@ -1,146 +1,103 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Link } from 'react-router-dom';
-import { Mic, Lock, Mail, ArrowRight, Loader2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Mic, Lock, Mail, ArrowRight, Loader2, Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 const Login = () => {
-    // 1. Get login function from Context
     const { login } = useAuth();
+    const navigate = useNavigate();
 
-    const [formData, setFormData] = useState({
-        email: '',
-        password: ''
-    });
+    const [formData, setFormData] = useState({ email: '', password: '' });
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState(''); // State to show errors
+    const [showPassword, setShowPassword] = useState(false);
+    const [error, setError] = useState('');
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
-        if (error) setError(''); // Clear error when user types
+        if (error) setError('');
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!formData.email || !formData.password) {
+            setError("Both fields are required.");
+            return;
+        }
+
         setIsSubmitting(true);
         setError('');
 
         try {
-            // ✅ CRITICAL FIX:
-            // Send email and password inside a single object to match AuthContext expectations
-            await login({
-                email: formData.email,
-                password: formData.password
-            });
-
-            // Redirection to Dashboard happens automatically inside AuthContext on success
-
+            await login({ email: formData.email, password: formData.password });
+            navigate('/dashboard'); // Direct navigation on success
         } catch (err) {
+            const message = err.response?.status === 401 
+                ? "Invalid credentials provided." 
+                : "Unable to connect to the neural network.";
+            setError(message);
+        } finally {
             setIsSubmitting(false);
-            // Show appropriate error message to the user based on backend response
-            if (err.response?.status === 401) {
-                setError("Invalid email or password.");
-            } else if (err.response?.status === 400) {
-                setError("Please check your input data.");
-            } else {
-                setError("Server error. Please try again later.");
-            }
         }
     };
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen px-4 bg-[#050505]">
+        <div className="flex flex-col items-center justify-center min-h-screen px-4 bg-[#050505] text-white">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-indigo-500/10 blur-[120px] rounded-full pointer-events-none" />
 
-            {/* 🌌 Background Glow Effect */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-indigo-500/10 blur-[100px] rounded-full pointer-events-none" />
-
-            <div className="w-full max-w-md relative z-10">
-
-                {/* 🔒 Header */}
+            <div className="w-full max-w-md relative z-10 animate-in fade-in zoom-in duration-500">
                 <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-white/5 border border-white/10 mb-4 shadow-xl shadow-indigo-500/10">
-                        <Mic className="w-6 h-6 text-indigo-400" />
+                    <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/20">
+                        <Mic className="w-8 h-8 text-white" />
                     </div>
-                    <h2 className="text-3xl font-bold text-white tracking-tight">Welcome Back</h2>
-                    <p className="text-slate-400 mt-2 text-sm">Enter your credentials to access the neural core.</p>
+                    <h2 className="text-3xl font-bold">Welcome Back</h2>
+                    <p className="text-slate-400 mt-2 text-sm">Access your neural core securely.</p>
                 </div>
 
-                {/* 📝 Form Card */}
-                <div className="bg-black/40 backdrop-blur-xl border border-white/10 p-8 rounded-2xl shadow-2xl">
-
-                    {/* Error Message Banner */}
+                <div className="bg-black/40 backdrop-blur-2xl border border-white/10 p-8 rounded-3xl shadow-2xl">
                     {error && (
-                        <div className="mb-6 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs text-center font-bold uppercase tracking-wide animate-pulse">
-                            {error}
+                        <div className="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-bold flex items-center gap-2">
+                            <AlertCircle size={16} /> {error}
                         </div>
                     )}
 
-                    <form onSubmit={handleSubmit} className="space-y-6">
-
-                        {/* Email Input */}
-                        <div className="space-y-2">
-                            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1">Email Identity</label>
-                            <div className="relative group">
-                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                    <Mail className="h-4 w-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
-                                </div>
+                    <form onSubmit={handleSubmit} className="space-y-5">
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Email Identity</label>
+                            <div className="relative">
+                                <Mail className="absolute left-4 top-3.5 text-slate-500" size={16} />
                                 <input
-                                    type="email"
-                                    name="email"
-                                    value={formData.email}
-                                    onChange={handleChange}
-                                    className="block w-full pl-11 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all text-sm"
-                                    placeholder="human@example.com"
-                                    required
+                                    type="email" name="email" value={formData.email} onChange={handleChange}
+                                    className="w-full pl-11 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                    placeholder="human@example.com" required
                                 />
                             </div>
                         </div>
 
-                        {/* Password Input */}
-                        <div className="space-y-2">
-                            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1">Password</label>
-                            <div className="relative group">
-                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                    <Lock className="h-4 w-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
-                                </div>
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Password</label>
+                            <div className="relative">
+                                <Lock className="absolute left-4 top-3.5 text-slate-500" size={16} />
                                 <input
-                                    type="password"
-                                    name="password"
-                                    value={formData.password}
-                                    onChange={handleChange}
-                                    className="block w-full pl-11 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all text-sm"
-                                    placeholder="••••••••"
-                                    required
+                                    type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handleChange}
+                                    className="w-full pl-11 pr-11 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                    placeholder="••••••••" required
                                 />
+                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-3.5 text-slate-500 hover:text-white">
+                                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                </button>
                             </div>
                         </div>
 
-                        {/* Submit Button */}
                         <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="w-full relative group overflow-hidden bg-white text-black font-bold py-3.5 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+                            type="submit" disabled={isSubmitting}
+                            className="w-full bg-white text-black font-bold py-4 rounded-xl hover:scale-[1.02] transition-transform flex items-center justify-center gap-2"
                         >
-                            <div className="absolute inset-0 bg-gradient-to-r from-indigo-400 via-purple-400 to-indigo-400 opacity-0 group-hover:opacity-10 transition-opacity duration-500" />
-                            <span className="relative flex items-center justify-center gap-2">
-                                {isSubmitting ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 animate-spin" /> Authenticating...
-                                    </>
-                                ) : (
-                                    <>
-                                        Initialize Session <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                                    </>
-                                )}
-                            </span>
+                            {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : <>Sign In <ArrowRight size={18} /></>}
                         </button>
                     </form>
 
-                    {/* Footer Links */}
-                    <div className="mt-6 text-center text-sm text-slate-500">
-                        Don't have an identity?{' '}
-                        <Link to="/register" className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors hover:underline">
-                            Create Account
-                        </Link>
+                    <div className="mt-8 pt-6 border-t border-white/5 text-center text-sm">
+                        <p className="text-slate-500">Need a new identity? <Link to="/register" className="text-indigo-400 font-bold hover:underline">Register</Link></p>
                     </div>
                 </div>
             </div>
