@@ -1,177 +1,440 @@
+# 🧬 Nexus — The AI‑Powered Project Manager Agent
 
-# 🧬 Nexus: The AI-Powered Project Manager Agent
-
-![Status](https://img.shields.io/badge/Status-Active_Development-brightgreen)
-![Version](https://img.shields.io/badge/Version-0.6_Beta-blue)
-![Stack](https://img.shields.io/badge/Stack-Django_|_Next.js_|_Docker-blueviolet)
-![AI](https://img.shields.io/badge/AI-Llama3_8b_|_LiveKit-orange)
+![Python](https://img.shields.io/badge/Python-3.11-blue)
+![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED)
+![Django](https://img.shields.io/badge/Django-REST%20API-092E20)
+![React](https://img.shields.io/badge/React-Frontend-61DAFB)
+![License](https://img.shields.io/badge/License-MIT-green)
 
 > **"Don't just chat with your AI. Hire it."**
 
-**Nexus** is a Voice-First AI Agent designed to manage software projects. Unlike passive chatbots that just give advice, Nexus has **"Hands"**—it can autonomously execute backend commands, create database records, and visualize real-time data on a dashboard, all through natural voice conversation.
+Nexus is a **Voice‑First AI Project Manager Agent** capable of **executing real backend operations through natural conversation**.
+
+Unlike traditional chatbots that only provide suggestions, Nexus can:
+
+• create projects
+• manage tasks
+• query databases
+• update application state
+• visualize actions instantly on a dashboard
+
+All through **real‑time voice interaction**.
 
 ---
 
-## 🌟 Key Features
+# 🎬 Demo
 
-* **🗣️ Real-time Voice Interface:** Ultra-low latency voice interaction using **LiveKit** & **Deepgram**. Talk naturally, interrupt anytime.
-* **🧠 Intelligent Persona:** Powered by **Llama-3 (via Groq)**, configured as a professional Project Manager who understands context.
-* **🛠️ AI Function Calling ("The Hands"):** The agent can connect to the internal API to:
-    * Create Projects & Tasks.
-    * Query Database Records.
-    * Update Statuses.
-* **📊 Live Dashboard:** A **Next.js** frontend that visualizes your voice actions in real-time. Say "Create Project," and watch it appear on screen instantly.
-* **🐳 Microservices Architecture:** Fully containerized environment using Docker Compose for easy deployment.
+*(Add screenshots or demo GIFs here once available)*
 
----
+Example interaction:
 
-## 🏗️ System Architecture
+> "Nexus, create a project called Mars Colony with description Terraforming phase one."
 
-Nexus is built on a modern, decoupled architecture consisting of three main services:
+The AI:
 
-| Service | Container Name | Description |
-| :--- | :--- | :--- |
-| **Frontend** | \`frontend\` | **Next.js 14** application. Handles the UI, WebRTC voice connection, and real-time data visualization. |
-| **Backend** | \`backend\` | **Django REST Framework**. The "Source of Truth." Manages the PostgreSQL database, Authentication, and API endpoints. |
-| **AI Worker** | \`ai_voice_agent\` | **Python (LiveKit Agents)**. The "Brain & Hands." Receives audio, processes intent with Llama-3, and calls the Backend API via an internal Client. |
+1. Understands the intent
+2. Calls backend tools
+3. Creates database records
+4. Pushes updates via WebSocket
+5. Updates the dashboard instantly
 
 ---
 
-## 🛠️ Tech Stack
+# 🧠 Core Concept
 
-* **Core:** Python 3.11, JavaScript (ES6+)
-* **Backend:** Django, Django REST Framework, PostgreSQL, Redis
-* **Frontend:** Next.js, React, TailwindCSS, ShadcnUI, Recharts
-* **AI & Voice:** LiveKit (WebRTC), Deepgram (STT/TTS), Groq (LLM Inference)
-* **DevOps:** Docker, Docker Compose, Nginx
+Nexus transforms an LLM from a **passive advisor** into an **active operational agent**.
 
----
+Instead of answering questions, the AI **takes actions**.
 
-## 🚀 Getting Started (Step-by-Step)
+```
+Traditional AI
+User → Question → AI → Answer
 
-Follow these instructions to get Nexus running on your local machine in under 5 minutes.
-
-### 1️⃣ Prerequisites
-* **Docker Desktop** installed and running.
-* **Git** installed.
-* API Keys for:
-    * [LiveKit Cloud](https://livekit.io/) (Url, Key, Secret)
-    * [Deepgram](https://deepgram.com/) (API Key)
-    * [Groq](https://groq.com/) (API Key)
-
-### 2️⃣ Installation
-
-1.  **Clone the repository:**
-    \`\`\`bash
-    git clone https://github.com/YOUR_USERNAME/Nexus-AI-Manager.git
-    cd Nexus-AI-Manager
-    \`\`\`
-
-2.  **Configure Environment Variables:**
-    Create a \`.env\` file in the root directory. You can copy the example:
-    \`\`\`bash
-    cp .env.example .env
-    \`\`\`
-    *Open the \`.env\` file and paste your API keys.*
-
-    **Critical Settings for Local Docker:**
-    \`\`\`env
-    # Internal Networking (How AI talks to Backend)
-    API_BASE_URL=http://backend:8000/api
-    NEXUS_API_USERNAME=admin
-    NEXUS_API_PASSWORD=admin
-    \`\`\`
-
-3.  **Build and Run with Docker:**
-    \`\`\`bash
-    docker-compose up --build
-    \`\`\`
-    *Wait until you see "System check identified no issues" in the backend logs.*
-
-4.  **Create a Superuser (Important):**
-    Open a new terminal window and run:
-    \`\`\`bash
-    docker exec -it backend python manage.py createsuperuser
-    \`\`\`
-    *(Use username: \`admin\` and password: \`admin\` to match your .env file).*
-
-### 3️⃣ Usage
-
-1.  **Open the Dashboard:** Go to \`http://localhost:3000\`.
-2.  **Connect:** Click the microphone icon to start the voice session.
-3.  **Try a Command:**
-    > *"Nexus, create a new project called 'Mars Colony' with the description 'Terraforming phase one'."*
-4.  **Watch the Magic:** The AI will confirm the action, and the project will appear in the table on your screen immediately.
+Nexus AI
+User → Voice Command → AI → Tool Execution → Database → UI Update
+```
 
 ---
 
-## 🧪 Testing & Verification
+# 🏗️ System Architecture
 
-To verify that the AI Agent can talk to the Database correctly (without speaking), run the internal connection test:
+## High‑Level Architecture
 
-\`\`\`bash
-docker exec -it ai_voice_agent python services/ai-worker/test_connection.py
-\`\`\`
-
-**Expected Output:**
-> ✅ Auth Success! Token received.
-> ✅ Action Executed: Project 'Test-Project' created.
-> ✅ Data Retrieved.
-
----
-
-## 📂 Project Structure
-
-\`\`\`bash
-Nexus-AI-Manager/
-├── backend/                # Django REST API
-│   ├── api/                # Endpoints & Serializers
-│   └── nexus_core/         # Settings & Config
-├── frontend/               # Next.js Dashboard
-│   ├── app/                # React Components & Pages
-│   └── lib/                # API Utilities
-├── services/
-│   └── ai-worker/          # The AI Agent Logic
-│       ├── agent.py        # Main Voice Pipeline
-│       ├── api_client.py   # Internal API Bridge ("The Hands")
-│       └── tools.py        # Function Definitions for Llama-3
-├── docker-compose.yml      # Container Orchestration
-└── README.md               # You are here
-\`\`\`
-
----
-
-## 🗺️ Roadmap
-
-| Milestone | Status | Description |
-| :--- | :--- | :--- |
-| **v0.1 - v0.4** | ✅ Done | Core Setup, API, UI, and Passive Voice Chat. |
-| **v0.5** | ✅ Done | Context Injection & Persona Engineering. |
-| **v0.6** | 🚀 **Current** | **Function Calling ("The Hands") & Real-time Actions.** |
-| **v0.7** | ⏳ Pending | Session Memory & Conversation History. |
-| **v1.0** | ⏳ Pending | Full MVP Release & Cloud Deployment. |
-
----
-
-## 🤝 Contributing
-
-We welcome contributions! Please follow these steps:
-1.  Fork the repo.
-2.  Create a branch: \`git checkout -b feature/CoolFeature\`.
-3.  Commit changes: \`git commit -m 'Add CoolFeature'\`.
-4.  Push to branch: \`git push origin feature/CoolFeature\`.
-5.  Open a Pull Request.
+```
+            ┌──────────────┐
+            │    Browser   │
+            │ React + Vite │
+            └──────┬───────┘
+                   │ WebRTC
+                   ▼
+             ┌───────────┐
+             │  LiveKit  │
+             │ Voice RTP │
+             └────┬──────┘
+                  │
+                  ▼
+        ┌───────────────────┐
+        │   AI Voice Agent  │
+        │  (LiveKit Worker) │
+        └─────┬─────┬───────┘
+              │     │
+              │     └────► Deepgram (Speech Recognition)
+              │
+              └────► Groq + Llama‑3 (Reasoning)
+                       │
+                       ▼
+                Tool Invocation
+                       │
+                       ▼
+               Django REST API
+                       │
+                       ▼
+                 PostgreSQL DB
+                       │
+                       ▼
+              Redis Event Broker
+                       │
+                       ▼
+               FastAPI WebSocket
+                       │
+                       ▼
+                React Dashboard
+```
 
 ---
 
-## 📄 License
+# 🧱 Microservices Architecture
 
-Distributed under the MIT License. See \`LICENSE\` for more information.
+Nexus uses a **decoupled containerized architecture**.
+
+| Service     | Container         | Responsibility             |
+| ----------- | ----------------- | -------------------------- |
+| API Gateway | ai_voice_gateway  | Nginx reverse proxy        |
+| Frontend    | ai_voice_frontend | React dashboard            |
+| Backend     | ai_voice_backend  | Django REST API            |
+| Realtime    | ai_voice_realtime | FastAPI WebSocket server   |
+| AI Worker   | ai_voice_agent    | Voice + reasoning pipeline |
+| Database    | ai_voice_db_psql  | PostgreSQL data layer      |
+| Cache       | redis             | pub/sub messaging          |
 
 ---
 
-### 👨‍💻 Author
+# 🎙️ Voice Processing Pipeline
+
+```
+User Speech
+      │
+      ▼
+LiveKit WebRTC Stream
+      │
+      ▼
+Deepgram Speech‑to‑Text
+      │
+      ▼
+Llama‑3 via Groq
+      │
+      ▼
+Intent Understanding
+      │
+      ▼
+Tool Selection
+      │
+      ▼
+Django API Call
+      │
+      ▼
+Database Update
+      │
+      ▼
+Redis Event
+      │
+      ▼
+FastAPI WebSocket
+      │
+      ▼
+React Dashboard Update
+      │
+      ▼
+Deepgram Text‑to‑Speech
+```
+
+---
+
+# 🔄 Event Flow
+
+```
+Voice Command
+      │
+      ▼
+AI Agent
+      │
+      ▼
+API Request
+      │
+      ▼
+Database Update
+      │
+      ▼
+Redis Pub/Sub
+      │
+      ▼
+WebSocket Broadcast
+      │
+      ▼
+Frontend Update
+```
+
+---
+
+# 🗄️ Database Model (Simplified ERD)
+
+```
+User
+ │
+ ├── Projects
+ │      │
+ │      ├── Tasks
+ │      │      └── Status
+ │      │
+ │      └── Activity Logs
+```
+
+Future extension may include:
+
+• sprint planning
+• AI meeting notes
+• automated reporting
+
+---
+
+# 🛠️ Tech Stack
+
+## Core
+
+Python 3.11
+JavaScript ES6+
+
+## Backend
+
+Django
+Django REST Framework
+FastAPI
+PostgreSQL
+Redis
+
+## Frontend
+
+React
+Vite
+TailwindCSS
+Shadcn UI
+Axios
+
+## AI & Voice
+
+LiveKit
+Deepgram
+Groq
+Llama‑3
+
+## DevOps
+
+Docker
+Docker Compose
+Nginx
+
+---
+
+# 🚀 Quick Start
+
+## 1 Clone Repository
+
+```
+git clone https://github.com/YOUR_USERNAME/Nexus-AI-Manager.git
+cd Nexus-AI-Manager
+```
+
+---
+
+## 2 Environment Variables
+
+```
+cp .env.example .env
+```
+
+Fill in:
+
+```
+LIVEKIT_URL=
+LIVEKIT_API_KEY=
+LIVEKIT_SECRET=
+
+DEEPGRAM_API_KEY=
+
+GROQ_API_KEY=
+```
+
+---
+
+## 3 Start Containers
+
+```
+docker compose up --build -d
+```
+
+Wait until all containers are healthy.
+
+---
+
+## 4 Create Django Superuser
+
+```
+docker exec -it ai_voice_backend python manage.py createsuperuser
+```
+
+---
+
+# 🎤 Usage
+
+Open:
+
+```
+http://localhost
+```
+
+Login and start voice session.
+
+Example command:
+
+> "Nexus create project Mars Colony"
+
+Dashboard updates immediately.
+
+---
+
+# 📂 Project Structure
+
+```
+Nexus-AI-Manager
+
+ai_voice_gateway/
+    nginx.conf
+
+backend/
+    django_project
+
+realtime_api/
+    websocket server
+
+frontend/
+    react dashboard
+
+services/
+    ai-worker/
+        agent.py
+        tools.py
+
+postgres/
+redis/
+
+docker-compose.yml
+README.md
+```
+
+---
+
+# 🗺️ Development Roadmap
+
+| Version | Status      | Description             |
+| ------- | ----------- | ----------------------- |
+| v0.4    | Completed   | Core platform           |
+| v0.5    | Completed   | API Gateway security    |
+| v0.6    | Completed   | AI tool execution       |
+| v0.7    | In progress | Celery async processing |
+| v0.8    | Planned     | AI memory layer         |
+| v1.0    | Planned     | Production deployment   |
+
+---
+
+# ☁️ Future Improvements
+
+Planned features:
+
+• Celery distributed workers
+• vector database memory
+• GitHub integration
+• Slack integration
+• automated sprint planning
+• AI meeting summaries
+
+---
+
+# 🧪 Production Deployment (Planned)
+
+Future deployment target:
+
+```
+Cloud Infrastructure
+
+AWS / GCP
+      │
+Kubernetes Cluster
+      │
+Ingress Controller
+      │
+Microservices Pods
+      │
+Managed PostgreSQL
+```
+
+CI/CD pipeline will include:
+
+• GitHub Actions
+• Docker image builds
+• automated deployment
+
+---
+
+# 🤝 Contributing
+
+1 Fork repository
+
+2 Create branch
+
+```
+git checkout -b feature/my-feature
+```
+
+3 Commit
+
+```
+git commit -m "feat: add capability"
+```
+
+4 Push
+
+```
+git push origin feature/my-feature
+```
+
+5 Open Pull Request
+
+---
+
+# 👨‍💻 Author
 
 **Hammad Ibrahim**
-* *Backend & AI Engineer*
-* *Project Nexus Lead*
+
+Backend & AI Engineer
+Project Nexus Lead
+
+---
+
+# ⭐ Support
+
+If you find this project useful:
+
+⭐ Star the repository
+
+or contribute to help improve Nexus.
+
