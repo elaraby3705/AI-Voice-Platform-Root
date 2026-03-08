@@ -1,8 +1,9 @@
 import uuid
-from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
+from django.conf import settings
+from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.utils import timezone
-
+import random
 
 class UserManager(BaseUserManager):
     """
@@ -76,6 +77,18 @@ class OneTimePassword(models.Model):
 
     def __str__(self):
         return f"OTP for {self.user.email}"
+
+    @classmethod
+    def generate_code(cls, user):
+        """
+        Generates a 6-digit OTP and saves it to the database.
+        """
+        code = str(random.randint(100000, 999999))
+        otp, _ = cls.objects.update_or_create(
+            user=user, 
+            defaults={'code': code, 'created_at': timezone.now()}
+        )
+        return otp
 
     def is_valid(self):
         return (timezone.now() - self.created_at).total_seconds() < 300
