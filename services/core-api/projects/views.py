@@ -7,6 +7,7 @@ from django.db.models import Q
 from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framwork.permissions import IsAuthenticated
 from livekit import api
 
 from .models import Project
@@ -142,3 +143,27 @@ class LiveKitTokenView(APIView):
             })
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+class ProjectListCreateView(generics.ListCreateAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ProjectSerializer
+
+    def get_queryset(self):
+        return Project.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+class ProjectDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    Handles GET (retrieve), PUT/PATCH (update), and DELETE (destroy).
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = ProjectSerializer
+    lookup_field = 'id'
+
+    def get_queryset(self):
+        #Important part here only the logged user control own projects
+        return Project.objects.filter(user=self.request.user)
