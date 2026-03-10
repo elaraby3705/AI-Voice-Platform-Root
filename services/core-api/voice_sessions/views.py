@@ -3,6 +3,8 @@ from django.utils.crypto import get_random_string
 from rest_framework import generics, status, permissions
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from django.db.models import Sum, Count
+from rest_framework.views import APIView
 
 # Models & Serializers
 from .models import VoiceSession
@@ -137,3 +139,34 @@ class VoiceSessionDetailView(generics.RetrieveAPIView):
     def get_queryset(self):
         # User can only see their own sessions
         return VoiceSession.objects.filter(user=self.request.user)
+
+class VoiceSessionSearchView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = VoiceSessionSerializer
+
+    def get_queryset(self):
+        query = self.request.query_params.get('q', None)
+        queryset = VoiceSession.objects.filter(user=self.request.user)
+        if query:
+            #
+            queryset = queryset.filter(final_transcript__icontains=query)
+        return queryset
+
+
+class AnalyticsSummaryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user_sessions = VoiceSession.objects.filter(user=request.user)
+
+        # collecting data --  (Aggregation)
+        stats = user_sessions.aggregate(
+            total_sessions=Count('id'),
+            total_duration=Sum('duration_seconds')
+        )
+
+        return Response({
+            "total_sessions": stats['total_sessions'] or 0,
+            "total_duration_minutes": round((stats['total_duration'] or 0) / 60, 2),
+            "project_count": user_sessions.values('project').distinct().count()
+        })
