@@ -1,6 +1,6 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status, viewsets
+from rest_framework import status, viewsets , generics
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -121,11 +121,10 @@ class LogoutView(APIView):
 # ---------------------------------------------------------
 # 4. Profile ViewSet
 # ---------------------------------------------------------
-class ProfileViewSet(viewsets.ModelViewSet):
+class ProfileView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = ProfileSerializer
 
-    def get_queryset(self):
-        return Profile.objects.filter(user=self.request.user)
-
+    def get_object(self):
+        return self.request.user.profile
 
