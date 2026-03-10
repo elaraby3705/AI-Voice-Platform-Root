@@ -6,7 +6,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 
-from .models import OneTimePassword
+from .models import OneTimePassword, Profile
 from .utils import send_otp_email
 from .serializers import (
     RegistrationSerializer,
@@ -15,7 +15,6 @@ from .serializers import (
 )
 
 User = get_user_model()
-
 
 # ---------------------------------------------------------
 # 1. Registration View
@@ -26,7 +25,7 @@ class RegisterView(APIView):
     def post(self, request):
         serializer = RegistrationSerializer(data=request.data)
         if serializer.is_valid():
-            # User and Profile are created via RegistrationSerializer.create
+            # User and Profile (via signal) are created
             user = serializer.save()
             user.is_active = False
             user.save()
@@ -37,7 +36,7 @@ class RegisterView(APIView):
                     "email": user.email
                 }, status=status.HTTP_201_CREATED)
             else:
-                user.delete()
+                user.delete() # Clean up if email fails
                 return Response({
                     "error": "Failed to send verification email."
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -64,6 +63,7 @@ class VerifyOTPView(APIView):
 
             if otp_record.code == otp_code and otp_record.is_valid():
                 user.is_active = True
+                user.is_verified = True # Ensure this is also set
                 user.save()
                 otp_record.delete()
 
@@ -97,6 +97,7 @@ class MeView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        # Now returns User + Profile fields defined in UserSerializer
         serializer = UserSerializer(request.user)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
