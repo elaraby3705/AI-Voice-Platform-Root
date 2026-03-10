@@ -3,7 +3,9 @@ from .views import (
     VoiceSessionListView,
     VoiceSessionDetailView,
     StartSessionAPIView,
-    FinishSessionAPIView
+    FinishSessionAPIView, 
+    VoiceSessionSearchView,
+    AnalyticsSummaryView
 )
 
 urlpatterns = [
