@@ -5,8 +5,25 @@ from .models import Profile
 
 User = get_user_model()
 
+# 1. Profile Serializer (Added to resolve the ImportError)
+class ProfileSerializer(serializers.ModelSerializer):
+    """
+    Serializer for the Profile model.
+    """
+    class Meta:
+        model = Profile
+        fields = [
+            'bio',
+            'preferred_voice_model',
+            'notifications_enabled',
+            'first_name',
+            'last_name',
+            'phone_number',
+            'country',
+            'company'
+        ]
 
-# 1. User & Profile Combined Serializer
+# 2. User & Profile Combined Serializer
 class UserSerializer(serializers.ModelSerializer):
     """
     Serializer that combines User and Profile data into a single response.
@@ -20,8 +37,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ("id", "email", "first_name", "last_name", "bio", "preferred_voice_model")
 
-
-# 2. Registration Serializer
+# 3. Registration Serializer
 class RegistrationSerializer(serializers.ModelSerializer):
     """
     Handles user registration.
@@ -38,8 +54,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
             password=validated_data['password']
         )
 
-
-# 3. Custom Login Serializer
+# 4. Custom Login Serializer
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
     JWT Serializer updated to include profile settings in the login response.
@@ -48,7 +63,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
 
-        # Safely access profile data using the related_name 'profile'
         profile = getattr(self.user, 'profile', None)
 
         data['user'] = {
