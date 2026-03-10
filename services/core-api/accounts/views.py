@@ -1,17 +1,17 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, viewsets
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
-
 from .models import OneTimePassword, Profile
 from .utils import send_otp_email
 from .serializers import (
     RegistrationSerializer,
     CustomTokenObtainPairSerializer,
-    UserSerializer
+    UserSerializer,
+    ProfileSerializer
 )
 
 User = get_user_model()
@@ -116,3 +116,16 @@ class LogoutView(APIView):
             return Response({"detail": "Logged out successfully."}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ---------------------------------------------------------
+# 4. Profile ViewSet
+# ---------------------------------------------------------
+class ProfileViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ProfileSerializer
+
+    def get_queryset(self):
+        return Profile.objects.filter(user=self.request.user)
+
+
