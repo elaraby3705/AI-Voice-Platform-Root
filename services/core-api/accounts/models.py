@@ -57,8 +57,6 @@ class Profile(models.Model):
     bio = models.TextField(blank=True, null=True)
     preferred_voice_model = models.CharField(max_length=50, default='gpt-4o')
     notifications_enabled = models.BooleanField(default=True)
-
-    # حقولك القديمة
     first_name = models.CharField(max_length=150, blank=True)
     last_name = models.CharField(max_length=150, blank=True)
     phone_number = models.CharField(max_length=20, blank=True)
