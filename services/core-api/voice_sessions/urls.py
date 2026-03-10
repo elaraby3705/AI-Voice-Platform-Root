@@ -22,4 +22,6 @@ urlpatterns = [
     # 4. Finish a session (Calculate duration & update status)
     # POST /api/v1/sessions/<uuid:session_id>/finish/
     path('<uuid:session_id>/finish/', FinishSessionAPIView.as_view(), name='session-finish'),
+path('search/', VoiceSessionSearchView.as_view(), name='session-search'),
+path('analytics/summary/', AnalyticsSummaryView.as_view(), name='session-analytics'),
 ]
