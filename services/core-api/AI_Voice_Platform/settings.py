@@ -1,5 +1,6 @@
 """
 Django settings for AI_Voice_Platform project.
+Optimized for Kubernetes deployment and Cloud SQL environment variables.
 """
 
 from pathlib import Path
@@ -10,18 +11,21 @@ from dotenv import load_dotenv
 # -----------------------------------------------------------------------------
 # 1. ENVIRONMENT CONFIGURATION
 # -----------------------------------------------------------------------------
-# CRITICAL: Load environment variables BEFORE accessing them.
-load_dotenv()
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Quick-start development settings - unsuitable for production
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-fallback-key-change-in-prod')
-DEBUG = os.getenv('DEBUG', 'True') == 'True'
+# Load local .env ONLY if the file exists (Development mode).
+# In Kubernetes, environment variables are injected directly via Secret/ConfigMap.
+env_file = BASE_DIR / '.env'
+if env_file.exists():
+    load_dotenv(dotenv_path=env_file)
 
-# Allow all hosts for Docker/Dev environment
-ALLOWED_HOSTS = ["*"]
+# Security & Debug Settings
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-fallback-key-change-in-prod')
+DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 't')
+
+# Read ALLOWED_HOSTS dynamically from environment variable or default to wildcard
+ALLOWED_HOSTS = [host.strip() for host in os.getenv('ALLOWED_HOSTS', '*').split(',') if host.strip()]
 
 # -----------------------------------------------------------------------------
 # 2. INSTALLED APPS
@@ -47,7 +51,7 @@ INSTALLED_APPS = [
     'voice_sessions.apps.VoiceSessionsConfig',  # AI Voice Logic
 ]
 
-# Point to your custom User model
+# Custom User Model
 AUTH_USER_MODEL = "accounts.User"
 
 # -----------------------------------------------------------------------------
@@ -83,16 +87,26 @@ TEMPLATES = [
 WSGI_APPLICATION = 'AI_Voice_Platform.wsgi.application'
 
 # -----------------------------------------------------------------------------
-# 4. DATABASE
+# 4. DATABASE CONFIGURATION (PostgreSQL / GCP Cloud SQL)
 # -----------------------------------------------------------------------------
+# Fallback logic to guarantee non-empty types and prevent NoneType connection errors
+DB_NAME = os.getenv('DB_NAME')
+DB_USER = os.getenv('DB_USER')
+DB_PASSWORD = os.getenv('DB_PASSWORD')
+DB_HOST = os.getenv('DB_HOST')
+DB_PORT = os.getenv('DB_PORT', '5432')
+
+if not all([DB_NAME, DB_USER, DB_PASSWORD, DB_HOST]):
+    print("⚠️ WARNING: Database credentials missing in environment variables!")
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME'),
-        'USER': os.getenv('DB_USER'),
-        'PASSWORD': os.getenv('DB_PASSWORD'),
-        'HOST': os.getenv('DB_HOST'),
-        'PORT': os.getenv('DB_PORT'),
+        'NAME': DB_NAME,
+        'USER': DB_USER,
+        'PASSWORD': DB_PASSWORD,
+        'HOST': DB_HOST,
+        'PORT': DB_PORT,
     }
 }
 
@@ -100,10 +114,10 @@ DATABASES = {
 # 5. PASSWORD VALIDATION
 # -----------------------------------------------------------------------------
 AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator', },
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', },
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator', },
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator', },
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
 # -----------------------------------------------------------------------------
@@ -166,17 +180,17 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 
 EMAIL_HOST = os.getenv('EMAIL_HOST')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
-EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS') == 'True'
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() in ('true', '1', 't')
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
-DEFAULT_FROM_EMAIL = f"AI Voice System <{os.getenv('EMAIL_HOST_USER')}>"
+DEFAULT_FROM_EMAIL = f"AI Voice System <{EMAIL_HOST_USER}>" if EMAIL_HOST_USER else "AI Voice System <noreply@example.com>"
 
 if not EMAIL_HOST or not EMAIL_HOST_PASSWORD:
-    print("⚠️ WARNING: Email configuration is missing in .env file")
+    print("⚠️ WARNING: Email configuration is missing in environment variables.")
 
 # -----------------------------------------------------------------------------
 # 9. LIVEKIT API (AI Voice Service)
 # -----------------------------------------------------------------------------
-LIVEKIT_URL = os.environ.get("LIVEKIT_URL")
-LIVEKIT_API_KEY = os.environ.get("LIVEKIT_API_KEY")
-LIVEKIT_API_SECRET = os.environ.get("LIVEKIT_API_SECRET")
+LIVEKIT_URL = os.getenv("LIVEKIT_URL")
+LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY")
+LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET")
