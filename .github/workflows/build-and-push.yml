@@ -16,11 +16,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. سحب الكود من GitHub
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # 2. تسجيل الدخول لـ GCP عبر مفتاح Service Account
     - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v2
       with:
@@ -33,27 +31,34 @@ jobs:
       run: |
         gcloud auth configure-docker ${{ env.GAR_LOCATION }}-docker.pkg.dev --quiet
 
-    # 3. بناء ورفع الخدمات الأربع المحددة في docker-compose
     - name: Build and Push Images
       run: |
         REGISTRY="${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}"
 
         # 1. Core API (backend)
-        docker build -t $REGISTRY/core-api:${{ github.sha }} -t $REGISTRY/core-api:latest ./services/core-api
+        docker build -t $REGISTRY/core-api:${{ github.sha }} \
+          -f ./services/core-api/Dockerfile.k8s \
+          ./services/core-api
         docker push $REGISTRY/core-api:${{ github.sha }}
-        docker push $REGISTRY/core-api:latest
 
         # 2. Frontend (React/Vite)
-        docker build -t $REGISTRY/frontend:${{ github.sha }} -t $REGISTRY/frontend:latest ./voice-frontend
+        docker build -t $REGISTRY/frontend:${{ github.sha }} \
+          -f ./voice-frontend/Dockerfile.k8s \
+          --build-arg VITE_API_URL=https://elaraby.shop/api/v1 \
+          ./voice-frontend
         docker push $REGISTRY/frontend:${{ github.sha }}
-        docker push $REGISTRY/frontend:latest
 
         # 3. AI Worker (ai_agent)
-        docker build -t $REGISTRY/ai-worker:${{ github.sha }} -t $REGISTRY/ai-worker:latest ./services/ai-worker
+        docker build -t $REGISTRY/ai-worker:${{ github.sha }} \
+          -f ./services/ai-worker/Dockerfile.k8s \
+          ./services/ai-worker
         docker push $REGISTRY/ai-worker:${{ github.sha }}
-        docker push $REGISTRY/ai-worker:latest
 
         # 4. Realtime API
-        docker build -t $REGISTRY/realtime-api:${{ github.sha }} -t $REGISTRY/realtime-api:latest ./services/realtime-api
+        docker build -t $REGISTRY/realtime-api:${{ github.sha }} \
+          -f ./services/realtime-api/Dockerfile.k8s \
+          ./services/realtime-api
         docker push $REGISTRY/realtime-api:${{ github.sha }}
-        docker push $REGISTRY/realtime-api:latest
+
+    - name: Output image tag for reference
+      run: echo "Images pushed with tag: ${{ github.sha }}"
