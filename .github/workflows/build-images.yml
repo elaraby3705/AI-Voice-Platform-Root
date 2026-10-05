@@ -40,7 +40,7 @@ jobs:
           docker build \
             -t ${{ env.REGISTRY }}/core-api:${{ github.sha }} \
             -t ${{ env.REGISTRY }}/core-api:latest \
-            -f ./services/core-api/Dockerfile.k8s \
+            -f ./services/core-api/Dockerfile \
             ./services/core-api
           docker push ${{ env.REGISTRY }}/core-api --all-tags
 
