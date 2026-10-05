@@ -49,7 +49,7 @@ jobs:
           docker build \
             -t ${{ env.REGISTRY }}/frontend:${{ github.sha }} \
             -t ${{ env.REGISTRY }}/frontend:latest \
-            -f ./voice-frontend/Dockerfile.k8s \
+            -f ./voice-frontend/Dockerfile \
             --build-arg VITE_API_URL=https://elaraby.shop/api/v1 \
             ./voice-frontend
           docker push ${{ env.REGISTRY }}/frontend --all-tags
@@ -59,7 +59,7 @@ jobs:
           docker build \
             -t ${{ env.REGISTRY }}/ai-worker:${{ github.sha }} \
             -t ${{ env.REGISTRY }}/ai-worker:latest \
-            -f ./services/ai-worker/Dockerfile.k8s \
+            -f ./services/ai-worker/Dockerfile \
             ./services/ai-worker
           docker push ${{ env.REGISTRY }}/ai-worker --all-tags
 
@@ -68,7 +68,7 @@ jobs:
           docker build \
             -t ${{ env.REGISTRY }}/realtime-api:${{ github.sha }} \
             -t ${{ env.REGISTRY }}/realtime-api:latest \
-            -f ./services/realtime-api/Dockerfile.k8s \
+            -f ./services/realtime-api/Dockerfile \
             ./services/realtime-api
           docker push ${{ env.REGISTRY }}/realtime-api --all-tags
 
