@@ -1,0 +1,82 @@
+name: Build and Push Images to GCP Artifact Registry
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  PROJECT_ID: "k8s-cluster-lunching"
+  GAR_LOCATION: "europe-west4"
+  REPOSITORY: "django-app-repo"
+  # Define the registry variable here for easy access across all steps
+  REGISTRY: "europe-west4-docker.pkg.dev/k8s-cluster-lunching/django-app-repo"
+
+jobs:
+  build-and-push:
+    name: Build & Push Service Images
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for GCP Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ env.GAR_LOCATION }}-docker.pkg.dev --quiet
+
+      # Separate each service into its own step for better visibility and to fail fast
+
+      - name: Build and Push Core API
+        run: |
+          docker build \
+            -t ${{ env.REGISTRY }}/core-api:${{ github.sha }} \
+            -t ${{ env.REGISTRY }}/core-api:latest \
+            -f ./services/core-api/Dockerfile.k8s \
+            ./services/core-api
+          docker push ${{ env.REGISTRY }}/core-api --all-tags
+
+      - name: Build and Push Frontend
+        run: |
+          docker build \
+            -t ${{ env.REGISTRY }}/frontend:${{ github.sha }} \
+            -t ${{ env.REGISTRY }}/frontend:latest \
+            -f ./voice-frontend/Dockerfile.k8s \
+            --build-arg VITE_API_URL=https://elaraby.shop/api/v1 \
+            ./voice-frontend
+          docker push ${{ env.REGISTRY }}/frontend --all-tags
+
+      - name: Build and Push AI Worker
+        run: |
+          docker build \
+            -t ${{ env.REGISTRY }}/ai-worker:${{ github.sha }} \
+            -t ${{ env.REGISTRY }}/ai-worker:latest \
+            -f ./services/ai-worker/Dockerfile.k8s \
+            ./services/ai-worker
+          docker push ${{ env.REGISTRY }}/ai-worker --all-tags
+
+      - name: Build and Push Realtime API
+        run: |
+          docker build \
+            -t ${{ env.REGISTRY }}/realtime-api:${{ github.sha }} \
+            -t ${{ env.REGISTRY }}/realtime-api:latest \
+            -f ./services/realtime-api/Dockerfile.k8s \
+            ./services/realtime-api
+          docker push ${{ env.REGISTRY }}/realtime-api --all-tags
+
+      - name: Output Pipeline Result
+        run: |
+          echo "✅ All images successfully built and pushed with tag: ${{ github.sha }}"
+          echo "⏳ CD Pipeline (deploy.yml) should trigger automatically after this."
+
+      # Intentional Note: There is no migration or cluster/database connection step here.
+      # This workflow's sole responsibility is Build + Push. The Deploy phase (and Migration Job)
+      # will be triggered manually from the cluster or via a separate CD workflow.
