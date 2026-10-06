@@ -7,6 +7,7 @@ export default defineConfig({
     host: '0.0.0.0', 
     strictPort: true,
     port: 5173,
+    allowedHosts: ['.elaraby.shop', 'elaraby.shop', 'www.elaraby.shop'],
     hmr: {
         path: '/vite-hmr/', 
         clientPort: 80 
