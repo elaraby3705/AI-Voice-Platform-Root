@@ -1,22 +1,32 @@
-# 1. Use Node.js Alpine image (lightweight)
-FROM node:22-alpine
+# --- Stage 1: Build Stage ---
+# Use Node.js Alpine image to build the React/Vite static assets
+FROM node:22-alpine AS builder
 
-# 2. Set working directory
+# Set the working directory inside the container
 WORKDIR /app
 
-# 3. Copy package files first (to cache dependencies)
-# Using package*.json matches both package.json and package-lock.json
+# Copy package dependency files to leverage Docker layer caching
 COPY package*.json ./
 
-# 4. Install dependencies
+# Install project dependencies
 RUN npm install
 
-# 5. Copy the rest of the code
+# Copy the rest of the application source code
 COPY . .
 
-# 6. Expose the port Vite runs on
-EXPOSE 5173
+# Build the application for production (generates the 'dist' directory)
+RUN npm run build
 
-# 7. Start the server
-# --host is required for Docker to map the port correctly
-CMD ["npm", "run", "dev", "--", "--host"]
+
+# --- Stage 2: Production Stage ---
+# Use a lightweight Nginx Alpine image to serve the static files securely
+FROM nginx:alpine
+
+# Copy the built static assets from the builder stage to Nginx web root
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Expose port 80 for HTTP web traffic
+EXPOSE 80
+
+# Start Nginx in the foreground to keep the container running for Kubernetes
+CMD ["nginx", "-g", "daemon off;"]
