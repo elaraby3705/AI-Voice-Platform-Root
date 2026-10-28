@@ -12,7 +12,7 @@ pipeline {
         GIT_BRANCH = 'main'
 
         // Replace with your current Nexus IP or hostname
-        NEXUS_HOST = 'http://63.189.153.14/:8082'
+        NEXUS_HOST = '63.189.153.14:8082'
 
         // Jenkins Credentials ID
         NEXUS_CREDENTIALS = 'nexus-docker-creds'
